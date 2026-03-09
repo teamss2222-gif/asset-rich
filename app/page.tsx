@@ -7,25 +7,14 @@ type StoredUser = {
   password: string;
 };
 
-const USERS_KEY = "asset-users";
-const CURRENT_USER_KEY = "asset-current-user";
-
-function readUsers(): StoredUser[] {
-  const raw = localStorage.getItem(USERS_KEY);
-  if (!raw) {
-    return [];
-  }
-
-  try {
-    const parsed = JSON.parse(raw) as StoredUser[];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function writeUsers(users: StoredUser[]) {
-  localStorage.setItem(USERS_KEY, JSON.stringify(users));
+async function postJson(path: string, body?: StoredUser) {
+  return fetch(path, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
 }
 
 export default function Home() {
@@ -40,75 +29,90 @@ export default function Home() {
   const [message, setMessage] = useState("");
   const [showLoginPw, setShowLoginPw] = useState(false);
   const [showSignupPw, setShowSignupPw] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem(CURRENT_USER_KEY);
-    if (saved) {
-      setCurrentUser(saved);
-    }
+    const loadSession = async () => {
+      const response = await fetch("/api/auth/session", { cache: "no-store" });
+      const data = (await response.json()) as { username: string | null };
+      setCurrentUser(data.username ?? null);
+    };
+
+    void loadSession();
   }, []);
 
   const isLoggedIn = useMemo(() => Boolean(currentUser), [currentUser]);
 
-  const handleLogin = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setLoginError("");
     setMessage("");
+    setBusy(true);
 
     const id = loginId.trim();
     const pw = loginPw;
-    const users = readUsers();
-    const match = users.find((user) => user.username === id && user.password === pw);
 
-    if (!match) {
-      setLoginError("아이디 또는 비밀번호가 올바르지 않습니다.");
-      return;
+    try {
+      const response = await postJson("/api/auth/login", { username: id, password: pw });
+      const data = (await response.json()) as { message?: string; username?: string };
+
+      if (!response.ok) {
+        setLoginError(data.message ?? "로그인에 실패했습니다.");
+        return;
+      }
+
+      setCurrentUser(data.username ?? id);
+      setMode("none");
+      setLoginId("");
+      setLoginPw("");
+      setMessage("로그인 되었습니다.");
+    } finally {
+      setBusy(false);
     }
-
-    localStorage.setItem(CURRENT_USER_KEY, id);
-    setCurrentUser(id);
-    setMode("none");
-    setLoginId("");
-    setLoginPw("");
-    setMessage("로그인 되었습니다.");
   };
 
-  const handleSignup = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSignup = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSignupError("");
     setMessage("");
+    setBusy(true);
 
     const id = signupId.trim();
     const pw = signupPw;
 
     if (id.length < 5) {
       setSignupError("아이디는 5자 이상이어야 합니다.");
+      setBusy(false);
       return;
     }
 
     if (pw.length < 6) {
       setSignupError("비밀번호는 6자 이상이어야 합니다.");
+      setBusy(false);
       return;
     }
 
-    const users = readUsers();
-    const exists = users.some((user) => user.username === id);
-    if (exists) {
-      setSignupError("이미 사용 중인 아이디입니다.");
-      return;
-    }
+    try {
+      const response = await postJson("/api/auth/signup", { username: id, password: pw });
+      const data = (await response.json()) as { message?: string; username?: string };
 
-    writeUsers([...users, { username: id, password: pw }]);
-    localStorage.setItem(CURRENT_USER_KEY, id);
-    setCurrentUser(id);
-    setMode("none");
-    setSignupId("");
-    setSignupPw("");
-    setMessage("회원가입 및 로그인이 완료되었습니다.");
+      if (!response.ok) {
+        setSignupError(data.message ?? "회원가입에 실패했습니다.");
+        return;
+      }
+
+      setCurrentUser(data.username ?? id);
+      setMode("none");
+      setSignupId("");
+      setSignupPw("");
+      setMessage("회원가입 및 로그인이 완료되었습니다.");
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem(CURRENT_USER_KEY);
+  const handleLogout = async () => {
+    await postJson("/api/auth/logout");
     setCurrentUser(null);
     setMessage("로그아웃 되었습니다.");
   };
@@ -220,8 +224,8 @@ export default function Home() {
                   </div>
                 </label>
                 {loginError ? <p className="auth-error">{loginError}</p> : null}
-                <button className="btn btn-primary auth-submit" type="submit">
-                  로그인
+                <button className="btn btn-primary auth-submit" type="submit" disabled={busy}>
+                  {busy ? "처리 중..." : "로그인"}
                 </button>
               </form>
             ) : (
@@ -253,8 +257,8 @@ export default function Home() {
                   </div>
                 </label>
                 {signupError ? <p className="auth-error">{signupError}</p> : null}
-                <button className="btn btn-primary auth-submit" type="submit">
-                  회원가입
+                <button className="btn btn-primary auth-submit" type="submit" disabled={busy}>
+                  {busy ? "처리 중..." : "회원가입"}
                 </button>
               </form>
             )}
