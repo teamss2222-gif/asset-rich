@@ -22,6 +22,7 @@ export type AssetExtraData = {
   marketLawdCode?: string;
   marketDealYmd?: string;
   marketAreaM2?: string;
+  marketDongName?: string;
   mortgageLoanManwon?: number;
   jeonseMonthlyLoanManwon?: number;
   mortgageMonthlyPaymentManwon?: number;

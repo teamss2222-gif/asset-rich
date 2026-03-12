@@ -6,12 +6,14 @@ type LookupBody = {
   dealYmd?: string;
   apartmentName?: string;
   areaM2?: number;
+  dongName?: string;
 };
 
 type TradeItem = {
   apartmentName: string;
   amountManwon: number;
   areaM2: number;
+  dongName: string;
   dealYmd: string;
   dealDateKey: string;
 };
@@ -68,6 +70,7 @@ function parseItemsFromXml(xml: string): TradeItem[] {
     const apartmentName = stripTag(item, "아파트") || stripTag(item, "aptNm");
     const amountRaw = stripTag(item, "거래금액") || stripTag(item, "dealAmount");
     const areaRaw = stripTag(item, "전용면적") || stripTag(item, "excluUseAr");
+    const dongName = stripTag(item, "법정동") || stripTag(item, "umdNm");
     const dealYear = stripTag(item, "년") || stripTag(item, "dealYear");
     const dealMonth = stripTag(item, "월") || stripTag(item, "dealMonth");
     const dealDay = stripTag(item, "일") || stripTag(item, "dealDay");
@@ -84,7 +87,7 @@ function parseItemsFromXml(xml: string): TradeItem[] {
 
     const areaM2 = Number(areaRaw) || 0;
 
-    return [{ apartmentName, amountManwon, areaM2, dealYmd, dealDateKey }];
+    return [{ apartmentName, amountManwon, areaM2, dongName, dealYmd, dealDateKey }];
   });
 }
 
@@ -128,6 +131,7 @@ export async function POST(request: Request) {
     const dealYmd = toDealYmd(body.dealYmd);
     const apartmentName = normalizeName((body.apartmentName ?? "").trim());
     const areaM2 = body.areaM2 ?? 0;
+    const dongName = normalizeName((body.dongName ?? "").trim());
 
     if (!/^\d{5}$/.test(lawdCode)) {
       return apiError({ status: 400, code: "INVALID_LAWD_CODE", message: "법정동코드 5자리를 입력해 주세요." });
@@ -147,6 +151,11 @@ export async function POST(request: Request) {
     let filteredRecent = apartmentName
       ? recentWindowTrades.filter((item) => normalizeName(item.apartmentName).includes(apartmentName))
       : recentWindowTrades;
+
+    // 동 이름 필터
+    if (dongName) {
+      filteredRecent = filteredRecent.filter((item) => normalizeName(item.dongName).includes(dongName));
+    }
 
     // 전용면적 필터 (±5㎡ 허용)
     if (areaM2 > 0) {
@@ -191,6 +200,10 @@ export async function POST(request: Request) {
       let filtered = apartmentName
         ? monthTrades.filter((item) => normalizeName(item.apartmentName).includes(apartmentName))
         : monthTrades;
+
+      if (dongName) {
+        filtered = filtered.filter((item) => normalizeName(item.dongName).includes(dongName));
+      }
 
       if (areaM2 > 0) {
         filtered = filtered.filter((item) => Math.abs(item.areaM2 - areaM2) <= 5);
