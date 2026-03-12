@@ -4,49 +4,57 @@
    🎮 PIXEL STYLE – Super Mario 80s Theme
    ══════════════════════════════════════════ */
 
-/* ── Pixel Font (Korean: Galmuri11) ── */
+/* ── Pixel Font (DungGeunMo – 읽기 쉬운 한국어 픽셀 폰트) ── */
 @font-face {
-  font-family: 'Galmuri11';
-  src: url('https://cdn.jsdelivr.net/npm/galmuri/dist/Galmuri11.woff2') format('woff2');
-  font-display: swap;
-}
-@font-face {
-  font-family: 'Galmuri11';
-  src: url('https://cdn.jsdelivr.net/npm/galmuri/dist/Galmuri11-Bold.woff2') format('woff2');
-  font-weight: bold;
+  font-family: 'DungGeunMo';
+  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.2/DungGeunMo.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
   font-display: swap;
 }
 
-/* ── CSS Variables ── */
+/* ── CSS Variables – Super Mario Official Palette Only ── */
 :root {
-  --font: 'Galmuri11', 'Press Start 2P', 'Courier New', monospace;
+  --font: 'DungGeunMo', 'Press Start 2P', monospace;
   --px: 3px;
 
-  --sky:         #6B8CFF;
-  --sky-dark:    #3C5AC6;
-  --brick:       #C84C0C;
-  --brick-lt:    #E8A048;
-  --ground:      #C0701C;
-  --ground-lt:   #E0A060;
-  --pipe:        #00A800;
-  --pipe-dk:     #006800;
-  --coin:        #FAC800;
-  --coin-dk:     #C89800;
-  --mario-red:   #E52521;
-  --mario-red-dk:#B01A17;
-  --block:       #F0BC7C;
-  --block-dk:    #C89050;
-  --question:    #F8B800;
-  --question-dk: #C89000;
-  --dark:        #0F0F0F;
-  --white:       #FCF8F0;
+  /* ─ Mario Sky ─ */
+  --sky:         #5C94FC;  /* SMB sky blue */
+  --sky-dark:    #0058F8;  /* dark sky / water */
+
+  /* ─ Mario Ground & Bricks ─ */
+  --brick:       #C84C0C;  /* brick block */
+  --brick-lt:    #E8A048;  /* brick highlight */
+  --ground:      #E09C48;  /* ground / ? block body */
+  --ground-dk:   #A86810;  /* ground shadow */
+
+  /* ─ Mario Pipe ─ */
+  --pipe:        #00A800;  /* pipe green */
+  --pipe-dk:     #005800;  /* pipe dark */
+
+  /* ─ Coin & ? Block ─ */
+  --coin:        #F8D830;  /* coin gold */
+  --coin-dk:     #A87820;  /* coin shadow */
+
+  /* ─ Mario / Fire ─ */
+  --mario-red:   #E40058;  /* Mario red (NES) */
+  --mario-red-dk:#A80020;  /* Mario red dark */
+  --fire:        #F83800;  /* fireball orange */
+
+  /* ─ Skin & Neutrals ─ */
+  --skin:        #FCBCB0;  /* Mario skin */
+  --block:       #F8D878;  /* ? block face */
+  --block-dk:    #A87820;  /* ? block shadow */
+  --dark:        #000000;  /* NES black */
+  --white:       #FCFCFC;  /* NES white */
   --cloud:       #F8F8F8;
 
+  /* ─ Legacy Aliases ─ */
   --toss-blue:    var(--sky);
   --toss-blue-dk: var(--sky-dark);
   --toss-text:    var(--dark);
-  --toss-sub:     #5A4A3E;
-  --toss-line:    #6B5540;
+  --toss-sub:     #684800;  /* brown text */
+  --toss-line:    var(--ground-dk);
   --toss-card:    var(--block);
   --toss-error:   var(--mario-red);
   --toss-success: var(--pipe);
@@ -62,30 +70,17 @@
    ══════════════════════════ */
 body {
   font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.6;
   color: var(--dark);
-  /* Mario overworld: sky → grass → ground */
-  background:
-    linear-gradient(to bottom,
-      #6B8CFF 0%, #6B8CFF 60%,
-      #5C94FC 60%, #5C94FC 62%,
-      #00A800 62%, #00A800 66%,
-      #008000 66%, #008000 68%,
-      #C0701C 68%, #C0701C 100%);
-  background-attachment: fixed;
+  background: url('/main00.png') center center / cover no-repeat fixed;
   min-height: 100vh;
   -webkit-font-smoothing: none;
   -moz-osx-font-smoothing: unset;
 }
 
 body.bg-loggedin {
-  background:
-    repeating-linear-gradient(
-      to right,
-      transparent 0px, transparent 30px,
-      rgba(255,255,255,0.02) 30px, rgba(255,255,255,0.02) 32px
-    ),
-    linear-gradient(to bottom, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-  background-attachment: fixed;
+  background: url('/main01.png') center center / cover no-repeat fixed;
 }
 
 /* ══════════════════════════
@@ -470,14 +465,7 @@ body.bg-loggedin {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  background:
-    repeating-linear-gradient(
-      to right,
-      transparent 0px, transparent 30px,
-      rgba(255,255,255,0.015) 30px, rgba(255,255,255,0.015) 32px
-    ),
-    linear-gradient(to bottom, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-  background-attachment: fixed;
+  background: url('/main01.png') center center / cover no-repeat fixed;
 }
 
 /* ── Top bar ── */
