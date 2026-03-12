@@ -1234,3 +1234,202 @@ body.bg-loggedin {
   }
 }
 
+/* ══════════════════════════
+   CARDS – 카드 혜택 비교
+   ══════════════════════════ */
+.cards-page {
+  padding: 1.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+.cards-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+.cards-title {
+  font-size: 1.5rem;
+  text-shadow: 2px 2px 0 var(--dark);
+  color: var(--coin);
+}
+.crawl-msg {
+  background: var(--pipe-dk);
+  color: var(--white);
+  padding: 0.5rem 1rem;
+  margin-bottom: 1rem;
+  border: var(--px) solid var(--pipe);
+  font-size: 0.85rem;
+}
+.cards-search {
+  width: 100%;
+  padding: 0.6rem 1rem;
+  margin-bottom: 1.5rem;
+  border: var(--px) solid var(--dark);
+  background: var(--white);
+  color: var(--dark);
+  font-family: inherit;
+  font-size: 0.9rem;
+  box-shadow: inset 2px 2px 0 rgba(0,0,0,0.1);
+}
+.cards-empty {
+  text-align: center;
+  color: var(--cloud);
+  padding: 3rem 0;
+  font-size: 1rem;
+}
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1.2rem;
+}
+.card-item {
+  background: var(--block);
+  border: var(--px) solid var(--dark);
+  cursor: pointer;
+  text-align: left;
+  padding: 0;
+  font-family: inherit;
+  color: var(--dark);
+  transition: transform 0.1s;
+  box-shadow:
+    inset calc(-1 * var(--px)) calc(-1 * var(--px)) 0 0 rgba(0,0,0,0.15),
+    inset var(--px) var(--px) 0 0 rgba(255,255,255,0.25);
+}
+.card-item:hover {
+  transform: scale(1.03);
+  border-color: var(--coin);
+}
+.card-item-top {
+  background: var(--white);
+  display: flex;
+  justify-content: center;
+  padding: 1rem 0.5rem;
+  min-height: 100px;
+  border-bottom: var(--px) solid var(--dark);
+}
+.card-item-img {
+  max-height: 80px;
+  max-width: 140px;
+  object-fit: contain;
+}
+.card-item-body {
+  padding: 0.7rem 0.8rem;
+}
+.card-item-name {
+  font-size: 0.85rem;
+  font-weight: bold;
+  margin-bottom: 0.2rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.card-item-company {
+  font-size: 0.75rem;
+  color: #666;
+  margin-bottom: 0.3rem;
+}
+.card-item-benefit {
+  font-size: 0.7rem;
+  color: var(--pipe-dk);
+}
+
+/* ── 카드 상세 ── */
+.card-detail-wrap {
+  margin-top: 1rem;
+}
+.card-detail-header {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-start;
+  margin-bottom: 1.5rem;
+  padding: 1.5rem;
+  background: var(--block);
+  border: var(--px) solid var(--dark);
+  box-shadow:
+    inset calc(-1 * var(--px)) calc(-1 * var(--px)) 0 0 rgba(0,0,0,0.15),
+    inset var(--px) var(--px) 0 0 rgba(255,255,255,0.25);
+}
+.card-detail-img {
+  max-height: 120px;
+  max-width: 200px;
+  object-fit: contain;
+  background: var(--white);
+  padding: 0.5rem;
+  border: var(--px) solid var(--dark);
+}
+.card-detail-info {
+  flex: 1;
+}
+.card-detail-name {
+  font-size: 1.3rem;
+  color: var(--dark);
+  margin-bottom: 0.3rem;
+}
+.card-detail-company {
+  font-size: 0.9rem;
+  color: #555;
+  margin-bottom: 0.8rem;
+}
+.card-detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  font-size: 0.85rem;
+}
+.card-detail-meta span {
+  background: var(--sky);
+  color: var(--white);
+  padding: 0.2rem 0.6rem;
+  border: var(--px) solid var(--dark);
+}
+.card-benefits-title {
+  font-size: 1.1rem;
+  margin-bottom: 0.8rem;
+  color: var(--coin);
+  text-shadow: 1px 1px 0 var(--dark);
+}
+.card-benefits-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.card-benefit-item {
+  display: flex;
+  gap: 0.8rem;
+  align-items: baseline;
+  padding: 0.6rem 0.8rem;
+  background: var(--block);
+  border: var(--px) solid var(--dark);
+  font-size: 0.85rem;
+}
+.card-benefit-cat {
+  background: var(--coin);
+  color: var(--dark);
+  padding: 0.15rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: bold;
+  white-space: nowrap;
+  border: var(--px) solid var(--dark);
+}
+.card-benefit-txt {
+  flex: 1;
+}
+
+@media (max-width: 640px) {
+  .cards-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .card-detail-header {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  .card-detail-meta {
+    justify-content: center;
+  }
+}
+

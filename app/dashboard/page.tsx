@@ -42,6 +42,13 @@ const folders = [
     color: "folder-teal",
   },
   {
+    href: "/dashboard/cards",
+    label: "카드혜택",
+    icon: "💳",
+    desc: "카드 비교 · 혜택 검색",
+    color: "folder-purple",
+  },
+  {
     href: "/dashboard/game",
     label: "게임",
     icon: "🎮",
