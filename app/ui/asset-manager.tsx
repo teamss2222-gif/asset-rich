@@ -321,7 +321,9 @@ export default function AssetManager({ initialEntries, hasRealEstateMarketApiKey
     }
 
     const lawdCode = (target.extraData?.marketLawdCode ?? "").trim();
-    const dealYmd = (target.extraData?.marketDealYmd ?? "").trim();
+    const now = new Date();
+    const autoYm = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const dealYmd = (target.extraData?.marketDealYmd ?? "").trim() || autoYm;
 
     if (!/^\d{5}$/.test(lawdCode)) {
       setLookupMessageById((current) => ({
@@ -494,6 +496,18 @@ export default function AssetManager({ initialEntries, hasRealEstateMarketApiKey
         }
 
         applyPopupAddress(entryId, displayAddress, autoLookupLawdCode);
+
+        // 주소에서 동 이름 자동 추출 (예: "역삼동", "논현동")
+        const dongMatch = displayAddress.match(/(\S+[\ub3d9\ub9ac\uc74d\uba74])(?:\s|$)/);
+        if (dongMatch) {
+          updateEntry(entryId, (current) => ({
+            ...current,
+            extraData: {
+              ...(current.extraData ?? {}),
+              marketDongName: dongMatch[1],
+            },
+          }));
+        }
       },
     });
 
@@ -708,18 +722,6 @@ export default function AssetManager({ initialEntries, hasRealEstateMarketApiKey
                                 >
                                   🔍 주소 검색
                                 </button>
-                                {entry.subtypeKey === "selfOwned" && (
-                                  <button
-                                    className="btn btn-ghost btn-sm"
-                                    type="button"
-                                    disabled={Boolean(
-                                      lookupLoadingById[entry.id] || !((entry.extraData?.address ?? "").trim())
-                                    )}
-                                    onClick={() => handleLookupLawdCode(entry.id)}
-                                  >
-                                    {lookupLoadingById[entry.id] ? "조회중..." : "코드찾기"}
-                                  </button>
-                                )}
                               </div>
                             <div className="realestate-meta-grid">
                               {entry.subtypeKey === "selfOwned" ? (
@@ -805,33 +807,21 @@ export default function AssetManager({ initialEntries, hasRealEstateMarketApiKey
                                     <div className="realestate-market-query-grid">
                                       <input
                                         className="asset-row-input"
-                                        value={entry.extraData?.marketLawdCode ?? ""}
-                                        onChange={(event) => handleRealEstateMetaChange(entry.id, "marketLawdCode", event.target.value)}
-                                        placeholder="법정동코드 5자리 (예: 11680)"
-                                      />
-                                      <input
-                                        className="asset-row-input"
-                                        value={entry.extraData?.marketDealYmd ?? ""}
-                                        onChange={(event) => handleRealEstateMetaChange(entry.id, "marketDealYmd", event.target.value)}
-                                        placeholder="조회년월 YYYYMM (예: 202603)"
+                                        value={entry.extraData?.marketAptName ?? ""}
+                                        onChange={(event) => handleRealEstateMetaChange(entry.id, "marketAptName", event.target.value)}
+                                        placeholder="아파트명 (예: 래미안)"
                                       />
                                       <input
                                         className="asset-row-input"
                                         value={entry.extraData?.marketAreaM2 ?? ""}
                                         onChange={(event) => handleRealEstateMetaChange(entry.id, "marketAreaM2", event.target.value)}
-                                        placeholder="전용면적㎡ (예: 84)"
+                                        placeholder="면적㎡"
                                       />
                                       <input
                                         className="asset-row-input"
                                         value={entry.extraData?.marketDongName ?? ""}
                                         onChange={(event) => handleRealEstateMetaChange(entry.id, "marketDongName", event.target.value)}
-                                        placeholder="동 이름 (예: 역삼동)"
-                                      />
-                                      <input
-                                        className="asset-row-input"
-                                        value={entry.extraData?.marketAptName ?? ""}
-                                        onChange={(event) => handleRealEstateMetaChange(entry.id, "marketAptName", event.target.value)}
-                                        placeholder="아파트명 (예: 래미안)"
+                                        placeholder="동명"
                                       />
                                       <button
                                         className="btn btn-ghost btn-sm"
@@ -847,14 +837,8 @@ export default function AssetManager({ initialEntries, hasRealEstateMarketApiKey
                                         자동 시세 조회는 API 키 설정 후 사용할 수 있습니다. 지금은 현재시세를 직접 입력해 주세요.
                                       </span>
                                     ) : null}
-                                    <input
-                                      className="asset-row-input"
-                                      value={entry.extraData?.marketSource ?? ""}
-                                      onChange={(event) => handleRealEstateMetaChange(entry.id, "marketSource", event.target.value)}
-                                      placeholder="시세 출처 (예: KB, 네이버부동산)"
-                                    />
                                     <button className="btn btn-ghost btn-sm" type="button" onClick={() => handleApplyMarketToAmount(entry.id)}>
-                                      현재시세 반영
+                                      시세 → 자산 반영
                                     </button>
                                   </>
                                 ) : (

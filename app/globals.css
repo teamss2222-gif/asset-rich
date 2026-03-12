@@ -62,8 +62,9 @@
   image-rendering: pixelated;
 }
 
-/* kill all rounded corners */
+/* kill all rounded corners (except bubbles) */
 * { border-radius: 0 !important; }
+.asset-bubble { border-radius: 50% !important; }
 
 /* ══════════════════════════
    BODY
@@ -937,8 +938,9 @@ body.bg-loggedin {
 .realestate-market-query-grid {
   grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  grid-template-columns: 1fr 80px 100px auto;
   gap: 0.5rem;
+  align-items: center;
 }
 
 .realestate-effective   { font-size: 0.72rem; color: var(--pipe-dk); font-weight: 700; }
