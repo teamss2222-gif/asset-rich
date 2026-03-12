@@ -7,8 +7,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
    ══════════════════════════════════════ */
 
 /* ── Constants ── */
-const W = 640;
-const H = 360;
+const W = 1280;
+const H = 720;
 const GRAVITY = 0.55;
 const JUMP_FORCE = -10;
 const SPEED = 3.5;
@@ -57,6 +57,7 @@ interface GameState {
   playerY: number;
   playerVy: number;
   isOnGround: boolean;
+  canDoubleJump: boolean;
   pipes: Pipe[];
   coins: Coin[];
   clouds: Cloud[];
@@ -81,6 +82,7 @@ function createInitialState(): GameState {
     playerY: GROUND_Y - 32,
     playerVy: 0,
     isOnGround: true,
+    canDoubleJump: true,
     pipes: [],
     coins: [],
     clouds,
@@ -188,9 +190,20 @@ export default function GamePage() {
         const s = stateRef.current;
         if (!s.started) {
           s.started = true;
+          return;
         }
         if (s.gameOver) {
           resetGame();
+          return;
+        }
+        // Double jump
+        if (s.isOnGround) {
+          s.playerVy = JUMP_FORCE;
+          s.isOnGround = false;
+          s.canDoubleJump = true;
+        } else if (s.canDoubleJump) {
+          s.playerVy = JUMP_FORCE;
+          s.canDoubleJump = false;
         }
       }
     };
@@ -223,6 +236,10 @@ export default function GamePage() {
       if (s.isOnGround) {
         s.playerVy = JUMP_FORCE;
         s.isOnGround = false;
+        s.canDoubleJump = true;
+      } else if (s.canDoubleJump) {
+        s.playerVy = JUMP_FORCE;
+        s.canDoubleJump = false;
       }
     };
     canvas.addEventListener("touchstart", handleTouch, { passive: false });
@@ -250,11 +267,7 @@ export default function GamePage() {
       if (s.started && !s.gameOver) {
         s.frameCount++;
 
-        // Jump
-        if ((keys.has("Space") || keys.has("ArrowUp")) && s.isOnGround) {
-          s.playerVy = JUMP_FORCE;
-          s.isOnGround = false;
-        }
+        // Jump handled in keydown event for double-jump support
 
         // Physics
         s.playerVy += GRAVITY;
@@ -264,6 +277,7 @@ export default function GamePage() {
           s.playerY = GROUND_Y - 32;
           s.playerVy = 0;
           s.isOnGround = true;
+          s.canDoubleJump = true;
         }
 
         s.distance += SPEED;
@@ -409,8 +423,9 @@ export default function GamePage() {
       if (!s.started) {
         drawRect(ctx, 0, 0, W, H, "rgba(0,0,0,0.5)");
         drawPixelText(ctx, "🎮 COIN RUN", W / 2, H / 2 - 40, 28, COIN_GOLD);
-        drawPixelText(ctx, "SPACE / 탭 으로 점프!", W / 2, H / 2 + 10, 16, WHITE);
-        drawPixelText(ctx, "파이프를 피하고 코인을 모아라!", W / 2, H / 2 + 40, 14, CLOUD_WHITE);
+        drawPixelText(ctx, "SPACE / 탭 으로 점프!", W / 2, H / 2 + 10, 24, WHITE);
+        drawPixelText(ctx, "2번 눌러 이단 점프!", W / 2, H / 2 + 45, 20, COIN_GOLD);
+        drawPixelText(ctx, "파이프를 피하고 코인을 모아라!", W / 2, H / 2 + 80, 18, CLOUD_WHITE);
       }
 
       // Game over
@@ -452,7 +467,7 @@ export default function GamePage() {
           </button>
         )}
         <p className="game-help">
-          ⌨️ SPACE / ↑ 점프 &nbsp;|&nbsp; 📱 화면 탭 점프
+          ⌨️ SPACE / ↑ 점프 (2번 = 이단점프) &nbsp;|&nbsp; 📱 화면 탭 점프
         </p>
       </div>
     </div>
