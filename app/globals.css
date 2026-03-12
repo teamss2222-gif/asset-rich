@@ -1129,3 +1129,58 @@ body.bg-loggedin {
   .dash-main { padding: 1rem 0.8rem 2rem; }
 }
 
+/* ══════════════════════════════════════
+   🎮 GAME PAGE
+   ══════════════════════════════════════ */
+.game-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.2rem;
+  padding: 2rem 1rem;
+}
+.game-header {
+  text-align: center;
+}
+.game-header h1 {
+  font-size: 1.6rem;
+  color: var(--coin);
+  text-shadow: 2px 2px 0 var(--dark);
+  margin-bottom: 0.3rem;
+}
+.game-header p {
+  font-size: 0.85rem;
+  color: var(--cloud);
+}
+.game-canvas {
+  border: 4px solid var(--dark);
+  box-shadow:
+    inset -4px -4px 0 var(--brick),
+    inset 4px 4px 0 var(--brick-lt),
+    0 0 0 4px var(--brick);
+  image-rendering: pixelated;
+  max-width: 100%;
+  height: auto;
+  cursor: pointer;
+}
+.game-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+}
+.game-score-display {
+  display: flex;
+  gap: 2rem;
+  font-size: 1rem;
+  color: var(--white);
+}
+.game-score-display strong {
+  color: var(--coin);
+}
+.game-help {
+  font-size: 0.75rem;
+  color: var(--brick-lt);
+  opacity: 0.8;
+}
+

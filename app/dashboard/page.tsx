@@ -42,6 +42,13 @@ const folders = [
     color: "folder-teal",
   },
   {
+    href: "/dashboard/game",
+    label: "게임",
+    icon: "🎮",
+    desc: "코인런 · 스코어 도전!",
+    color: "folder-red",
+  },
+  {
     href: "/dashboard/setting",
     label: "설정",
     icon: "🔧",
