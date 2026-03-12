@@ -1,33 +1,24 @@
 import { NextRequest } from "next/server";
 import { apiOk, apiError } from "@/lib/api-response";
-import { crawlAll, crawlCard, saveCard, getPopularCardIds } from "@/lib/card-crawler";
+import { crawlCard, saveCard } from "@/lib/card-crawler";
 
-// POST  — 크롤링 실행 (전체 또는 단건)
+// POST — 단건 크롤링 (프론트에서 1장씩 호출)
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
-    const { cardId, cardIds } = body as { cardId?: number; cardIds?: number[] };
+    const { cardId } = body as { cardId?: number };
 
-    // 단건 크롤링
-    if (cardId) {
-      const card = await crawlCard(cardId);
-      if (!card) {
-        return apiError({ status: 404, code: "NOT_FOUND", message: `카드 ID ${cardId} 크롤링 실패` });
-      }
-      await saveCard(card);
-      return apiOk(card, { message: "카드 크롤링 완료" });
+    if (!cardId) {
+      return apiError({ status: 400, code: "BAD_REQUEST", message: "cardId 필수" });
     }
 
-    // 전체 크롤링
-    const ids = cardIds ?? getPopularCardIds();
-    const results = await crawlAll(ids);
-    const success = results.filter((r) => r.ok).length;
-    const failed = results.filter((r) => !r.ok).length;
+    const card = await crawlCard(cardId);
+    if (!card) {
+      return apiOk({ cardId, ok: false }, { message: `카드 ID ${cardId} 크롤링 실패` });
+    }
 
-    return apiOk(
-      { results, summary: { total: ids.length, success, failed } },
-      { message: `크롤링 완료: 성공 ${success}, 실패 ${failed}` },
-    );
+    await saveCard(card);
+    return apiOk({ cardId, ok: true, name: card.name }, { message: "카드 크롤링 완료" });
   } catch (err) {
     return apiError({
       status: 500,

@@ -1261,6 +1261,25 @@ body.bg-loggedin {
   border: var(--px) solid var(--pipe);
   font-size: 0.85rem;
 }
+.crawl-progress {
+  margin-bottom: 1rem;
+}
+.crawl-progress-bar {
+  height: 20px;
+  background: var(--dark);
+  border: var(--px) solid var(--dark);
+  overflow: hidden;
+}
+.crawl-progress-fill {
+  height: 100%;
+  background: var(--pipe);
+  transition: width 0.3s;
+}
+.crawl-progress-text {
+  font-size: 0.8rem;
+  color: var(--cloud);
+  margin-top: 0.3rem;
+}
 .cards-search {
   width: 100%;
   padding: 0.6rem 1rem;

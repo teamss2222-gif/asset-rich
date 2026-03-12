@@ -39,22 +39,54 @@ export default function CardsPage() {
 
   useEffect(() => { fetchCards(); }, [fetchCards]);
 
+  const [crawlProgress, setCrawlProgress] = useState({ done: 0, total: 0, current: "" });
+
   const startCrawl = async () => {
     setCrawling(true);
-    setCrawlMsg("크롤링 시작...");
+    setCrawlMsg("");
+
+    // 1) ID 목록 가져오기
+    let ids: number[] = [];
     try {
-      const res = await fetch("/api/cards/crawl", { method: "POST" });
-      const json = await res.json();
-      if (json.ok) {
-        const s = json.data?.summary;
-        setCrawlMsg(`완료! 성공: ${s?.success ?? 0} / 실패: ${s?.failed ?? 0}`);
-        await fetchCards();
-      } else {
-        setCrawlMsg(`오류: ${json.message}`);
-      }
-    } catch (e) {
-      setCrawlMsg(`실패: ${e instanceof Error ? e.message : "네트워크 오류"}`);
+      const idRes = await fetch("/api/cards/ids");
+      const idJson = await idRes.json();
+      ids = idJson.data ?? [];
+    } catch {
+      setCrawlMsg("카드 ID 목록 조회 실패");
+      setCrawling(false);
+      return;
     }
+
+    // 2) 1장씩 크롤링
+    let success = 0;
+    let failed = 0;
+    setCrawlProgress({ done: 0, total: ids.length, current: "준비 중..." });
+
+    for (let i = 0; i < ids.length; i++) {
+      setCrawlProgress({ done: i, total: ids.length, current: `카드 #${ids[i]} 크롤링 중...` });
+      try {
+        const res = await fetch("/api/cards/crawl", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cardId: ids[i] }),
+        });
+        const json = await res.json();
+        if (json.ok && json.data?.ok) {
+          success++;
+          setCrawlProgress({ done: i + 1, total: ids.length, current: `✅ ${json.data.name}` });
+        } else {
+          failed++;
+          setCrawlProgress({ done: i + 1, total: ids.length, current: `❌ 카드 #${ids[i]} 실패` });
+        }
+      } catch {
+        failed++;
+        setCrawlProgress({ done: i + 1, total: ids.length, current: `❌ 카드 #${ids[i]} 오류` });
+      }
+    }
+
+    setCrawlMsg(`완료! 성공: ${success} / 실패: ${failed}`);
+    setCrawlProgress({ done: 0, total: 0, current: "" });
+    await fetchCards();
     setCrawling(false);
   };
 
@@ -127,6 +159,20 @@ export default function CardsPage() {
       </div>
 
       {crawlMsg && <p className="crawl-msg">{crawlMsg}</p>}
+
+      {crawling && crawlProgress.total > 0 && (
+        <div className="crawl-progress">
+          <div className="crawl-progress-bar">
+            <div
+              className="crawl-progress-fill"
+              style={{ width: `${(crawlProgress.done / crawlProgress.total) * 100}%` }}
+            />
+          </div>
+          <p className="crawl-progress-text">
+            {crawlProgress.done}/{crawlProgress.total} — {crawlProgress.current}
+          </p>
+        </div>
+      )}
 
       <input
         type="text"
