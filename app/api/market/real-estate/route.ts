@@ -5,11 +5,13 @@ type LookupBody = {
   lawdCode?: string;
   dealYmd?: string;
   apartmentName?: string;
+  areaM2?: number;
 };
 
 type TradeItem = {
   apartmentName: string;
   amountManwon: number;
+  areaM2: number;
   dealYmd: string;
   dealDateKey: string;
 };
@@ -65,6 +67,7 @@ function parseItemsFromXml(xml: string): TradeItem[] {
   return items.flatMap((item) => {
     const apartmentName = stripTag(item, "아파트") || stripTag(item, "aptNm");
     const amountRaw = stripTag(item, "거래금액") || stripTag(item, "dealAmount");
+    const areaRaw = stripTag(item, "전용면적") || stripTag(item, "excluUseAr");
     const dealYear = stripTag(item, "년") || stripTag(item, "dealYear");
     const dealMonth = stripTag(item, "월") || stripTag(item, "dealMonth");
     const dealDay = stripTag(item, "일") || stripTag(item, "dealDay");
@@ -79,7 +82,9 @@ function parseItemsFromXml(xml: string): TradeItem[] {
     const dealYmd = `${dealYear}${normalizedMonth}`;
     const dealDateKey = `${dealYear}${normalizedMonth}${normalizedDay}`;
 
-    return [{ apartmentName, amountManwon, dealYmd, dealDateKey }];
+    const areaM2 = Number(areaRaw) || 0;
+
+    return [{ apartmentName, amountManwon, areaM2, dealYmd, dealDateKey }];
   });
 }
 
@@ -122,6 +127,7 @@ export async function POST(request: Request) {
     const lawdCode = (body.lawdCode ?? "").trim();
     const dealYmd = toDealYmd(body.dealYmd);
     const apartmentName = normalizeName((body.apartmentName ?? "").trim());
+    const areaM2 = body.areaM2 ?? 0;
 
     if (!/^\d{5}$/.test(lawdCode)) {
       return apiError({ status: 400, code: "INVALID_LAWD_CODE", message: "법정동코드 5자리를 입력해 주세요." });
@@ -138,9 +144,14 @@ export async function POST(request: Request) {
       recentWindowTrades.push(...monthlyTrades);
     }
 
-    const filteredRecent = apartmentName
+    let filteredRecent = apartmentName
       ? recentWindowTrades.filter((item) => normalizeName(item.apartmentName).includes(apartmentName))
       : recentWindowTrades;
+
+    // 전용면적 필터 (±5㎡ 허용)
+    if (areaM2 > 0) {
+      filteredRecent = filteredRecent.filter((item) => Math.abs(item.areaM2 - areaM2) <= 5);
+    }
 
     const recent3MonthKeys = new Set(listRecentMonths(dealYmd, 3));
     const tradesIn3Months = filteredRecent.filter((trade) => recent3MonthKeys.has(trade.dealYmd));
@@ -177,9 +188,13 @@ export async function POST(request: Request) {
     let latestFallbackTrade: TradeItem | null = null;
     for (const month of listRecentMonths(dealYmd, 36)) {
       const monthTrades = await fetchTradesForMonth(serviceKey, lawdCode, month);
-      const filtered = apartmentName
+      let filtered = apartmentName
         ? monthTrades.filter((item) => normalizeName(item.apartmentName).includes(apartmentName))
         : monthTrades;
+
+      if (areaM2 > 0) {
+        filtered = filtered.filter((item) => Math.abs(item.areaM2 - areaM2) <= 5);
+      }
 
       if (filtered.length > 0) {
         latestFallbackTrade = filtered.reduce((latest, current) => {

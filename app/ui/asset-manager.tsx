@@ -259,7 +259,7 @@ export default function AssetManager({ initialEntries, hasRealEstateMarketApiKey
 
   const handleRealEstateMetaChange = (
     entryId: string,
-    key: "address" | "marketSource" | "marketLawdCode" | "marketDealYmd",
+    key: "address" | "marketSource" | "marketLawdCode" | "marketDealYmd" | "marketAreaM2",
     value: string,
   ) => {
     updateEntry(entryId, (current) => ({
@@ -344,6 +344,7 @@ export default function AssetManager({ initialEntries, hasRealEstateMarketApiKey
           lawdCode,
           dealYmd,
           apartmentName: (target.label || target.extraData?.address || "").trim(),
+          areaM2: Number(target.extraData?.marketAreaM2) || 0,
         }),
       });
 
@@ -812,6 +813,12 @@ export default function AssetManager({ initialEntries, hasRealEstateMarketApiKey
                                         value={entry.extraData?.marketDealYmd ?? ""}
                                         onChange={(event) => handleRealEstateMetaChange(entry.id, "marketDealYmd", event.target.value)}
                                         placeholder="조회년월 YYYYMM (예: 202603)"
+                                      />
+                                      <input
+                                        className="asset-row-input"
+                                        value={entry.extraData?.marketAreaM2 ?? ""}
+                                        onChange={(event) => handleRealEstateMetaChange(entry.id, "marketAreaM2", event.target.value)}
+                                        placeholder="전용면적㎡ (예: 84)"
                                       />
                                       <button
                                         className="btn btn-ghost btn-sm"
