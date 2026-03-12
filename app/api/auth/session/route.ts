@@ -1,7 +1,7 @@
-import { NextResponse } from "next/server";
+import { apiOk } from "../../../../lib/api-response";
 import { readSession } from "../../../../lib/session";
 
 export async function GET() {
   const username = await readSession();
-  return NextResponse.json({ username });
+  return apiOk({ username }, { code: "SESSION_OK", message: "session loaded" });
 }

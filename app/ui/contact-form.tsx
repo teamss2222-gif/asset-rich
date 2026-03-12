@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { requestApi } from "../../lib/http-client";
 
 type Status = {
   type: "idle" | "ok" | "error";
@@ -25,20 +26,18 @@ export function ContactForm() {
     };
 
     try {
-      const response = await fetch("/api/contact", {
+      const result = await requestApi<{ message?: string }>("/api/contact", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
-      const data = (await response.json()) as { message?: string };
-
-      if (!response.ok) {
-        throw new Error(data.message ?? "요청 처리에 실패했습니다.");
+      if (!result.ok) {
+        throw new Error(result.traceId ? `${result.message} (traceId: ${result.traceId})` : result.message);
       }
 
       form.reset();
-      setStatus({ type: "ok", message: data.message ?? "문의가 정상 접수되었습니다." });
+      setStatus({ type: "ok", message: result.data.message ?? "문의가 정상 접수되었습니다." });
     } catch (error) {
       setStatus({
         type: "error",

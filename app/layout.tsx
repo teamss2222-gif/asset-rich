@@ -1,20 +1,9 @@
 import type { Metadata } from "next";
-import { Nunito, Oswald } from "next/font/google";
 import "./globals.css";
 
-const oswald = Oswald({
-  variable: "--font-oswald",
-  subsets: ["latin"],
-});
-
-const nunito = Nunito({
-  variable: "--font-nunito",
-  subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
-  title: "Asset Lab",
-  description: "A bold Next.js starter project.",
+  title: "🎮 ASSET LAB",
+  description: "8-BIT 자산관리 서비스",
 };
 
 export default function RootLayout({
@@ -23,8 +12,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${oswald.variable} ${nunito.variable} antialiased`}>{children}</body>
+    <html lang="ko">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap"
+        />
+      </head>
+      <body>{children}</body>
     </html>
   );
 }

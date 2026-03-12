@@ -1,7 +1,7 @@
-import { NextResponse } from "next/server";
+import { apiOk } from "../../../../lib/api-response";
 import { clearSession } from "../../../../lib/session";
 
 export async function POST() {
   await clearSession();
-  return NextResponse.json({ ok: true });
+  return apiOk({ ok: true }, { code: "LOGOUT_OK", message: "logout success" });
 }
