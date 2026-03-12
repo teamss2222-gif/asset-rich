@@ -158,7 +158,7 @@ export async function POST(request: Request) {
 
     const endpoint =
       "https://apis.data.go.kr/1741000/StanReginCd/getStanReginCdList" +
-      `?serviceKey=${encodeURIComponent(serviceKey)}` +
+      `?serviceKey=${serviceKey}` +
       "&type=xml&pageNo=1&numOfRows=100&flag=Y" +
       `&locatadd_nm=${encodeURIComponent(address)}`;
 

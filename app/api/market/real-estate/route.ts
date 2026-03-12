@@ -86,7 +86,7 @@ function parseItemsFromXml(xml: string): TradeItem[] {
 async function fetchTradesForMonth(serviceKey: string, lawdCode: string, dealYmd: string) {
   const endpoint =
     "https://apis.data.go.kr/1613000/RTMSDataSvcAptTrade/getRTMSDataSvcAptTrade" +
-    `?serviceKey=${encodeURIComponent(serviceKey)}` +
+    `?serviceKey=${serviceKey}` +
     `&LAWD_CD=${lawdCode}` +
     `&DEAL_YMD=${dealYmd}` +
     "&numOfRows=500&pageNo=1";
