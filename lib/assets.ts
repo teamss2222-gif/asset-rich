@@ -23,6 +23,7 @@ export type AssetExtraData = {
   marketDealYmd?: string;
   marketAreaM2?: string;
   marketDongName?: string;
+  marketAptName?: string;
   mortgageLoanManwon?: number;
   jeonseMonthlyLoanManwon?: number;
   mortgageMonthlyPaymentManwon?: number;

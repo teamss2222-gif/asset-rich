@@ -259,7 +259,7 @@ export default function AssetManager({ initialEntries, hasRealEstateMarketApiKey
 
   const handleRealEstateMetaChange = (
     entryId: string,
-    key: "address" | "marketSource" | "marketLawdCode" | "marketDealYmd" | "marketAreaM2" | "marketDongName",
+    key: "address" | "marketSource" | "marketLawdCode" | "marketDealYmd" | "marketAreaM2" | "marketDongName" | "marketAptName",
     value: string,
   ) => {
     updateEntry(entryId, (current) => ({
@@ -343,7 +343,7 @@ export default function AssetManager({ initialEntries, hasRealEstateMarketApiKey
         body: JSON.stringify({
           lawdCode,
           dealYmd,
-          apartmentName: (target.label || target.extraData?.address || "").trim(),
+          apartmentName: (target.extraData?.marketAptName || target.label || target.extraData?.address || "").trim(),
           areaM2: Number(target.extraData?.marketAreaM2) || 0,
           dongName: (target.extraData?.marketDongName ?? "").trim(),
         }),
@@ -826,6 +826,12 @@ export default function AssetManager({ initialEntries, hasRealEstateMarketApiKey
                                         value={entry.extraData?.marketDongName ?? ""}
                                         onChange={(event) => handleRealEstateMetaChange(entry.id, "marketDongName", event.target.value)}
                                         placeholder="동 이름 (예: 역삼동)"
+                                      />
+                                      <input
+                                        className="asset-row-input"
+                                        value={entry.extraData?.marketAptName ?? ""}
+                                        onChange={(event) => handleRealEstateMetaChange(entry.id, "marketAptName", event.target.value)}
+                                        placeholder="아파트명 (예: 래미안)"
                                       />
                                       <button
                                         className="btn btn-ghost btn-sm"
