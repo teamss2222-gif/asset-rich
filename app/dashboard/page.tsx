@@ -42,13 +42,6 @@ const folders = [
     color: "folder-teal",
   },
   {
-    href: "/dashboard/finance",
-    label: "금융상품",
-    icon: "💰",
-    desc: "예금 · 적금 · 대출 비교",
-    color: "folder-amber",
-  },
-  {
     href: "/dashboard/game",
     label: "게임",
     icon: "🎮",

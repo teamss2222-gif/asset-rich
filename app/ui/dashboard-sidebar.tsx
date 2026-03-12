@@ -11,7 +11,6 @@ const navItems = [
   { href: "/dashboard/calendar", label: "캘린더", icon: "🏰" },
   { href: "/dashboard/report", label: "리포트", icon: "🔥" },
   { href: "/dashboard/document", label: "문서", icon: "📦" },
-  { href: "/dashboard/finance", label: "금융상품", icon: "💰" },
   { href: "/dashboard/game", label: "게임", icon: "🎮" },
   { href: "/dashboard/setting", label: "설정", icon: "🔧" },
 ];
