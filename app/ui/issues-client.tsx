@@ -9,7 +9,7 @@ type IssueRecord = {
   id: number;
   rank: number;
   keyword: string;
-  sourceRanks: { google?: number; youtube?: number; naver?: number; ai?: number };
+  sourceRanks: { google?: number; youtube?: number; naver?: number; daum?: number; ai?: number };
   score: number;
   genderWeights: { male: number; female: number };
   ageWeights: Record<AgeKey, number>;
@@ -55,6 +55,9 @@ function SourceBadges({ sourceRanks }: { sourceRanks: IssueRecord["sourceRanks"]
       )}
       {sourceRanks.naver !== undefined && (
         <span className="issue-source-badge source-naver">N</span>
+      )}
+      {sourceRanks.daum !== undefined && (
+        <span className="issue-source-badge source-daum">D</span>
       )}
     </div>
   );
@@ -318,6 +321,12 @@ export default function IssuesClient() {
                   <span className="issue-modal-source-item">
                     <span className="issue-source-badge source-naver">N</span>
                     네이버 {selected.sourceRanks.naver}위
+                  </span>
+                )}
+                {selected.sourceRanks.daum !== undefined && (
+                  <span className="issue-modal-source-item">
+                    <span className="issue-source-badge source-daum">D</span>
+                    다음 {selected.sourceRanks.daum}위
                   </span>
                 )}
                 {selected.sourceRanks.ai !== undefined && (

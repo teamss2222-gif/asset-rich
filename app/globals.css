@@ -1151,6 +1151,8 @@ body.bg-loggedin {
 .issue-source-badge.source-google { background: rgba(255,100,69,0.18); color: #ff7b74; border: 1px solid rgba(255,100,69,0.3); }
 .issue-source-badge.source-youtube { background: rgba(255,50,50,0.18); color: #ff6b6b; border: 1px solid rgba(255,50,50,0.3); }
 .issue-source-badge.source-naver { background: rgba(48,209,88,0.18); color: #34c759; border: 1px solid rgba(48,209,88,0.3); }
+.issue-source-badge.source-daum  { background: rgba(120,80,255,0.18); color: #a07cff; border: 1px solid rgba(120,80,255,0.35); }
+.issue-source-badge.source-daum  { background: rgba(120,80,255,0.18); color: #a07cff; border: 1px solid rgba(120,80,255,0.35); }
 .issue-traffic { font-size: 0.7rem; color: var(--text-3); white-space: nowrap; }
 
 /* Skeleton */

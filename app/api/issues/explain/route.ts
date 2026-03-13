@@ -20,7 +20,10 @@ function buildAzureUrl(): string | null {
 }
 
 export async function POST(req: NextRequest) {
-  const apiKey = process.env.AZURE_OPENAI_API_KEY?.split(/[\r\n]/)[0].trim();
+  const apiKey = process.env.AZURE_OPENAI_API_KEY
+    ?.split(/[\r\n]/)[0]
+    .replace(/\s.*$/, "")   // strip trailing " N" from Vercel CLI sensitive-prompt pollution
+    .trim();
   const chatUrl = buildAzureUrl();
 
   if (!apiKey || !chatUrl) {

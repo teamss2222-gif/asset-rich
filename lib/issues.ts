@@ -9,6 +9,7 @@ export type SourceRanks = {
   google?: number;
   youtube?: number;
   naver?: number;
+  daum?: number;
   ai?: number;
 };
 
@@ -44,6 +45,7 @@ type RawItem = {
   googleRank?: number;
   youtubeRank?: number;
   naverRank?: number;
+  daumRank?: number;
   meta?: Record<string, string | undefined>;
 };
 
@@ -122,18 +124,20 @@ async function fetchYoutubeTrending(): Promise<RawItem[]> {
   }
 }
 
-// 네이버 모의 데이터: 15분 단위 시드로 변화하여 실시간감 부여
-const NAVER_POOL = [
-  "이재명", "윤석열", "한동훈", "지민", "손흥민",
-  "국민연금", "코스피", "비트코인", "아이폰 17", "갤럭시 S25",
-  "봄 여행지", "벚꽃 명소", "황사 마스크", "전세사기 대책", "금투세",
-  "수능 일정", "의대 정원", "대학입시", "청년 주택", "최저임금",
-  "롯데자이언츠", "KBS 드라마", "넷플릭스 신작", "카카오뱅크", "SK하이닉스",
-  "환율 급등", "미중 무역전쟁", "AI 규제", "챗GPT 업데이트", "테슬라 주가",
-  "엔비디아 실적", "삼성전자 배당", "프로야구 개막", "K리그", "올림픽 대표",
-  "무신사 할인", "쿠팡 프레시", "배달의민족 이슈", "야놀자 특가", "여행 트렌드",
-  "부동산 규제", "청약 당첨", "아파트 분양", "전월세 전환", "대출 금리",
-];
+// ──────────────────────────────────────────────────
+// Helper: 뉴스 헤드라인에서 핵심 키워드 추출
+// ──────────────────────────────────────────────────
+
+function extractKeyword(title: string): string {
+  return title
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&[a-z#0-9]+;/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .split(/[,，、·|\[【(「"']|\.\.\.|\s{2,}/)[0]
+    .trim()
+    .slice(0, 35);
+}
 
 function simpleHash(str: string | number): number {
   const s = String(str);
@@ -144,15 +148,125 @@ function simpleHash(str: string | number): number {
   return Math.abs(h);
 }
 
-function generateNaverMock(): RawItem[] {
+// 폴백 풀 (모든 라이브 소스 실패 시)
+const NAVER_FALLBACK_POOL = [
+  "이재명", "한동훈", "이준석", "민주당", "국민의힘",
+  "코스피", "원달러 환율", "비트코인", "삼성전자", "SK하이닉스",
+  "손흥민", "김민재", "이강인", "KBO 개막", "K리그",
+  "벚꽃 명소", "봄 여행지", "황사 대비", "미세먼지", "제주 날씨",
+  "챗GPT", "엔비디아 주가", "AI 규제", "구글 제미나이", "전기차",
+  "무신사 세일", "쿠팡 스트리밍", "배달의민족", "네이버 플러스", "카카오T",
+  "청년 주택", "부동산 규제", "대출 금리", "전세사기", "공공임대",
+  "의대 증원", "수능 일정", "공무원 시험", "취업 준비", "최저임금",
+  "넷플릭스 신작", "디즈니플러스", "티빙 오리지널", "국내 드라마", "영화 순위",
+  "BTS 제이홉", "지민 컴백", "뉴진스", "에스파", "스트레이키즈",
+];
+
+function generateNaverFallback(): RawItem[] {
   const seed = Math.floor(Date.now() / (15 * 60 * 1000));
-  const shuffled = [...NAVER_POOL].sort(
+  const shuffled = [...NAVER_FALLBACK_POOL].sort(
     (a, b) => simpleHash(a + seed) - simpleHash(b + seed),
   );
-  return shuffled.slice(0, 20).map((keyword, i) => ({
-    keyword,
-    naverRank: i + 1,
-  }));
+  return shuffled.slice(0, 20).map((keyword, i) => ({ keyword, naverRank: i + 1 }));
+}
+
+// Google 실시간 트렌드 (매시간 갱신) - 기존 일별과 별도 엔드포인트
+async function fetchGoogleTrendsRealtime(): Promise<RawItem[]> {
+  try {
+    const res = await fetch(
+      "https://trends.google.com/trending/rss?geo=KR",
+      {
+        headers: { "User-Agent": "Mozilla/5.0 (compatible; AssetLabBot/1.0)" },
+        cache: "no-store",
+        signal: AbortSignal.timeout(5000),
+      },
+    );
+    if (!res.ok) return [];
+    const xml = await res.text();
+    const $ = load(xml, { xmlMode: true });
+    const items: RawItem[] = [];
+    $( "item").each((i, el) => {
+      const keyword = $(el).find("title").first().text().trim();
+      const traffic = $(el).find("ht\\:approx_traffic").text().trim();
+      if (keyword) items.push({ keyword, googleRank: i + 1, meta: { traffic } });
+    });
+    return items.slice(0, 20);
+  } catch {
+    return [];
+  }
+}
+
+// 연합뉴스 + YTN 뉴스 RSS → 국내 화제 키워드
+async function fetchNaverNews(): Promise<RawItem[]> {
+  const RSS_URLS = [
+    "https://www.yna.co.kr/rss/all.xml",         // 연합뉴스 전체
+    "https://www.yna.co.kr/rss/society.xml",     // 연합뉴스 사회
+    "https://www.yna.co.kr/rss/culture.xml",     // 연합뉴스 문화
+    "https://www.yna.co.kr/rss/entertainment.xml", // 연합뉴스 연예
+  ];
+
+  const allItems: RawItem[] = [];
+  await Promise.allSettled(
+    RSS_URLS.map(async (url) => {
+      try {
+        const res = await fetch(url, {
+          headers: { "User-Agent": "Mozilla/5.0 (compatible; AssetLabBot/1.0)" },
+          cache: "no-store",
+          signal: AbortSignal.timeout(5000),
+        });
+        if (!res.ok) return;
+        const xml = await res.text();
+        const $ = load(xml, { xmlMode: true });
+        $("item").each((_, el) => {
+          const raw = $(el).find("title").first().text().trim();
+          const keyword = extractKeyword(raw);
+          if (keyword.length >= 2) allItems.push({ keyword });
+        });
+      } catch { /* skip */ }
+    }),
+  );
+
+  if (allItems.length < 5) return generateNaverFallback();
+
+  const seen = new Set<string>();
+  return allItems
+    .filter((it) => !seen.has(it.keyword) && seen.add(it.keyword))
+    .slice(0, 20)
+    .map((it, i) => ({ ...it, naverRank: i + 1 }));
+}
+
+// 다음 뉴스 RSS (사회·연예·경제·정치·문화 5개 섹션)
+async function fetchDaumNews(): Promise<RawItem[]> {
+  const SECTIONS = ["society", "entertain", "economic", "politics", "culture"];
+  const allItems: RawItem[] = [];
+
+  await Promise.allSettled(
+    SECTIONS.map(async (sec) => {
+      try {
+        const res = await fetch(`https://rss.news.daum.net/rss/${sec}`, {
+          headers: { "User-Agent": "Mozilla/5.0 (compatible; AssetLabBot/1.0)" },
+          cache: "no-store",
+          signal: AbortSignal.timeout(5000),
+        });
+        if (!res.ok) return;
+        const xml = await res.text();
+        const $ = load(xml, { xmlMode: true });
+        $("item").each((_, el) => {
+          const raw = $(el).find("title").first().text().trim();
+          const keyword = extractKeyword(raw);
+          if (keyword.length >= 2) allItems.push({ keyword });
+        });
+      } catch { /* skip */ }
+    }),
+  );
+
+  if (allItems.length === 0) return [];
+
+  const seen = new Set<string>();
+  return allItems
+    .filter((it) => !seen.has(it.keyword) && seen.add(it.keyword))
+    .slice(0, 20)
+    .map((it, i) => ({ ...it, daumRank: i + 1 }));
 }
 
 // ──────────────────────────────────────────────────
@@ -167,7 +281,10 @@ type AIIssueItem = {
 };
 
 async function fetchAzureOpenAIIssues(): Promise<AIIssueItem[] | null> {
-  const apiKey = process.env.AZURE_OPENAI_API_KEY?.split(/[\r\n]/)[0].trim();
+  const apiKey = process.env.AZURE_OPENAI_API_KEY
+    ?.split(/[\r\n]/)[0]
+    .replace(/\s.*$/, "")   // strip trailing " N" from Vercel CLI sensitive-prompt pollution
+    .trim();
   const endpointRaw = (process.env.AZURE_OPENAI_ENDPOINT ?? "").split(/[\r\n]/)[0].trim();
   const deployment = (process.env.AZURE_OPENAI_DEPLOYMENT_NAME ?? "").split(/[\r\n]/)[0].trim();
   const apiVersion = (process.env.AZURE_OPENAI_API_VERSION ?? "2025-04-01-preview").split(/[\r\n]/)[0].trim();
@@ -301,11 +418,13 @@ export function computeRanking(
   google: RawItem[],
   youtube: RawItem[],
   naver: RawItem[],
+  daum: RawItem[],
 ): Omit<IssueRecord, "id" | "collectedAt">[] {
   const scoreMap = new Map<string, {
     googleRank?: number;
     youtubeRank?: number;
     naverRank?: number;
+    daumRank?: number;
     meta: Record<string, string | undefined>;
     score: number;
   }>();
@@ -313,7 +432,7 @@ export function computeRanking(
   const addScore = (
     items: RawItem[],
     weight: number,
-    rankKey: "googleRank" | "youtubeRank" | "naverRank",
+    rankKey: "googleRank" | "youtubeRank" | "naverRank" | "daumRank",
   ) => {
     items.forEach((item) => {
       const existing = scoreMap.get(item.keyword) ?? { meta: {}, score: 0 };
@@ -327,9 +446,10 @@ export function computeRanking(
     });
   };
 
-  addScore(google, 0.40, "googleRank");
-  addScore(youtube, 0.35, "youtubeRank");
+  addScore(google, 0.35, "googleRank");
+  addScore(youtube, 0.25, "youtubeRank");
   addScore(naver, 0.25, "naverRank");
+  addScore(daum, 0.15, "daumRank");
 
   const sorted = [...scoreMap.entries()]
     .sort(([, a], [, b]) => b.score - a.score)
@@ -344,6 +464,7 @@ export function computeRanking(
         google: data.googleRank,
         youtube: data.youtubeRank,
         naver: data.naverRank,
+        daum: data.daumRank,
       },
       score: parseFloat(data.score.toFixed(4)),
       genderWeights,
@@ -471,18 +592,34 @@ export async function collectAndSave(): Promise<{
     return { count: ranked.length, sources: ["ai"] };
   }
 
-  // 폴댐: 스크래핑
-  const [google, youtube] = await Promise.all([
+  // 폴백: 다중 소스 실시간 수집 (Google Daily + Realtime + 연합뉴스 + 다음 + YouTube)
+  const [googleDaily, googleRT, youtube, naver, daum] = await Promise.all([
     fetchGoogleTrends(),
+    fetchGoogleTrendsRealtime(),
     fetchYoutubeTrending(),
+    fetchNaverNews(),
+    fetchDaumNews(),
   ]);
-  const naver = generateNaverMock();
 
-  const sources: string[] = ["naver"];
-  if (google.length > 0) sources.unshift("google");
+  // Google 일별 + 실시간 병합 (중복 제거, 일별 우선)
+  const googleSeen = new Set<string>();
+  const google: RawItem[] = [];
+  for (const item of [...googleDaily, ...googleRT]) {
+    const lk = item.keyword.toLowerCase();
+    if (!googleSeen.has(lk)) {
+      googleSeen.add(lk);
+      google.push({ ...item, googleRank: google.length + 1 });
+    }
+  }
+
+  const sources: string[] = [];
+  if (google.length > 0) sources.push("google");
   if (youtube.length > 0) sources.push("youtube");
+  if (naver.length > 0) sources.push("naver");
+  if (daum.length > 0) sources.push("daum");
+  if (sources.length === 0) sources.push("fallback");
 
-  const ranked = computeRanking(google, youtube, naver);
+  const ranked = computeRanking(google, youtube, naver, daum);
   if (ranked.length === 0) return { count: 0, sources };
 
   await saveIssues(ranked);
