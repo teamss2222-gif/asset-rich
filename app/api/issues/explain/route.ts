@@ -11,16 +11,16 @@ const SYSTEM_PROMPT = `
 `.trim();
 
 function buildAzureUrl(): string | null {
-  const endpointRaw = (process.env.AZURE_OPENAI_ENDPOINT ?? "").trim();
-  const deployment = (process.env.AZURE_OPENAI_DEPLOYMENT_NAME ?? "").trim();
-  const apiVersion = (process.env.AZURE_OPENAI_API_VERSION ?? "2025-04-01-preview").trim();
+  const endpointRaw = (process.env.AZURE_OPENAI_ENDPOINT ?? "").split(/[\r\n]/)[0].trim();
+  const deployment = (process.env.AZURE_OPENAI_DEPLOYMENT_NAME ?? "").split(/[\r\n]/)[0].trim();
+  const apiVersion = (process.env.AZURE_OPENAI_API_VERSION ?? "2025-04-01-preview").split(/[\r\n]/)[0].trim();
   if (!endpointRaw || !deployment) return null;
   const origin = new URL(endpointRaw).origin;
   return `${origin}/openai/deployments/${encodeURIComponent(deployment)}/chat/completions?api-version=${encodeURIComponent(apiVersion)}`;
 }
 
 export async function POST(req: NextRequest) {
-  const apiKey = process.env.AZURE_OPENAI_API_KEY?.trim();
+  const apiKey = process.env.AZURE_OPENAI_API_KEY?.split(/[\r\n]/)[0].trim();
   const chatUrl = buildAzureUrl();
 
   if (!apiKey || !chatUrl) {

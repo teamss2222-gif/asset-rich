@@ -142,12 +142,13 @@ export default function IssuesClient() {
     if (res.ok) {
       setExplanation(res.data.explanation ?? "");
     } else {
-      setExplainError(res.message);
+      const detail = (res.raw as Record<string, string> | null)?.details;
+      setExplainError(detail ? `${res.message}\n\n[detail] ${detail}` : res.message);
     }
     setExplaining(false);
   };
 
-  const closeModal = () => {
+  const clearDetail = () => {
     setSelected(null);
     setExplanation("");
     setExplainError("");
@@ -246,110 +247,107 @@ export default function IssuesClient() {
         </div>
       </div>
 
-      {/* 이슈 리스트 */}
-      {loading ? (
-        <div className="issue-loading-state">
-          {Array.from({ length: 10 }).map((_, i) => (
-            <div key={i} className="issue-skeleton" />
-          ))}
-        </div>
-      ) : (
-        <div className="issue-list">
-          {issues.map((issue) => (
-            <button
-              key={issue.id}
-              className="issue-item"
-              onClick={() => void handleItemClick(issue)}
-              type="button"
-            >
-              <RankBadge rank={issue.rank} />
-              <span className="issue-keyword">{issue.keyword}</span>
-              {issue.meta.traffic && (
-                <span className="issue-traffic">{issue.meta.traffic}</span>
-              )}
-              <SourceBadges sourceRanks={issue.sourceRanks} />
-            </button>
-          ))}
-          {issues.length === 0 && (
-            <p style={{ color: "var(--text-3)", textAlign: "center", padding: "2rem 0" }}>
-              이슈 데이터가 없습니다. 위 버튼으로 수동 수집할 수 있습니다.
+      {/* 본문: 2단 분할 */}
+      <div className="issue-body-split">
+        {/* 왼쪽: 2열 이슈 그리드 */}
+        <div className="issue-list-pane">
+          {loading ? (
+            <div className="issue-grid-2col">
+              {Array.from({ length: 20 }).map((_, i) => (
+                <div key={i} className="issue-skeleton" style={{ height: "42px" }} />
+              ))}
+            </div>
+          ) : issues.length === 0 ? (
+            <p style={{ color: "var(--text-3)", textAlign: "center", padding: "2rem 0", fontSize: "0.84rem" }}>
+              이슈 데이터가 없습니다. 위 버튼으로 수동 수집하세요.
             </p>
+          ) : (
+            <div className="issue-grid-2col">
+              {issues.map((issue) => (
+                <button
+                  key={issue.id}
+                  className={`issue-grid-item${selected?.id === issue.id ? " active" : ""}`}
+                  onClick={() => void handleItemClick(issue)}
+                  type="button"
+                >
+                  <RankBadge rank={issue.rank} />
+                  <span className="issue-keyword">{issue.keyword}</span>
+                  <SourceBadges sourceRanks={issue.sourceRanks} />
+                </button>
+              ))}
+            </div>
           )}
         </div>
-      )}
 
-      {/* 상세 모달 */}
-      {selected && (
-        <div
-          className="issue-modal-overlay"
-          onClick={(e) => e.target === e.currentTarget && closeModal()}
-          role="dialog"
-          aria-modal="true"
-        >
-          <div className="issue-modal">
-            <div className="issue-modal-head">
-              <div className="issue-modal-rank">#{selected.rank}</div>
-              <h2 className="issue-modal-title">{selected.keyword}</h2>
-              <button
-                className="issue-modal-close"
-                onClick={closeModal}
-                type="button"
-                aria-label="닫기"
-              >
-                ×
-              </button>
+        {/* 오른쪽: 상세 분석 패널 */}
+        <div className="issue-detail-pane">
+          {!selected ? (
+            <div className="issue-detail-empty">
+              <div className="issue-detail-empty-icon">🔍</div>
+              <span>키워드를 클릭하면<br />AI 이슈 분석이<br />여기에 표시됩니다</span>
             </div>
+          ) : (
+            <div className="issue-detail-content">
+              <div className="issue-detail-head">
+                <span className="issue-detail-rank">#{selected.rank}</span>
+                <h3 className="issue-detail-title">{selected.keyword}</h3>
+                <button
+                  className="issue-detail-close"
+                  onClick={clearDetail}
+                  type="button"
+                  aria-label="닫기"
+                >
+                  ×
+                </button>
+              </div>
 
-            <div className="issue-modal-sources">
-              {selected.sourceRanks.google !== undefined && (
-                <span className="issue-modal-source-item">
-                  <span className="issue-source-badge source-google">G</span>
-                  구글 {selected.sourceRanks.google}위
-                </span>
-              )}
-              {selected.sourceRanks.youtube !== undefined && (
-                <span className="issue-modal-source-item">
-                  <span className="issue-source-badge source-youtube">Y</span>
-                  유튜브 {selected.sourceRanks.youtube}위
-                </span>
-              )}
-              {selected.sourceRanks.naver !== undefined && (
-                <span className="issue-modal-source-item">
-                  <span className="issue-source-badge source-naver">N</span>
-                  네이버 {selected.sourceRanks.naver}위
-                </span>
-              )}
-              {selected.meta.traffic && (
-                <span className="issue-modal-source-item">
-                  검색량 {selected.meta.traffic}
-                </span>
-              )}
+              <div className="issue-modal-sources">
+                {selected.sourceRanks.google !== undefined && (
+                  <span className="issue-modal-source-item">
+                    <span className="issue-source-badge source-google">G</span>
+                    구글 {selected.sourceRanks.google}위
+                  </span>
+                )}
+                {selected.sourceRanks.youtube !== undefined && (
+                  <span className="issue-modal-source-item">
+                    <span className="issue-source-badge source-youtube">Y</span>
+                    유튜브 {selected.sourceRanks.youtube}위
+                  </span>
+                )}
+                {selected.sourceRanks.naver !== undefined && (
+                  <span className="issue-modal-source-item">
+                    <span className="issue-source-badge source-naver">N</span>
+                    네이버 {selected.sourceRanks.naver}위
+                  </span>
+                )}
+                {selected.sourceRanks.ai !== undefined && (
+                  <span className="issue-modal-source-item">
+                    <span className="issue-source-badge source-ai">AI</span>
+                    AI 생성
+                  </span>
+                )}
+                {selected.meta.traffic && (
+                  <span className="issue-modal-source-item">검색량 {selected.meta.traffic}</span>
+                )}
+              </div>
+
+              <div className="issue-explain-section">
+                <p className="issue-explain-title">🤖 AI 이슈 분석</p>
+                {explaining ? (
+                  <div className="issue-explain-loading">
+                    <DotPulse />
+                    <span>분석 중입니다...</span>
+                  </div>
+                ) : explainError ? (
+                  <div className="issue-no-openai">⚠️ {explainError}</div>
+                ) : explanation ? (
+                  <p className="issue-explain-text">{renderExplanation(explanation)}</p>
+                ) : null}
+              </div>
             </div>
-
-            <div className="issue-explain-section">
-              <p className="issue-explain-title">🤖 AI 이슈 분석</p>
-
-              {explaining ? (
-                <div className="issue-explain-loading">
-                  <DotPulse />
-                  <span>ChatGPT가 분석 중입니다...</span>
-                </div>
-              ) : explainError ? (
-                <div className="issue-no-openai">
-                  ⚠️ {explainError}
-                  {explainError.includes("OPENAI_API_KEY") && (
-                    <><br /><br />설정 방법: Vercel 대시보드 → Settings → Environment Variables → <code>OPENAI_API_KEY</code> 추가</>
-                  )}
-                </div>
-              ) : (
-                <p className="issue-explain-text">
-                  {renderExplanation(explanation)}
-                </p>
-              )}
-            </div>
-          </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }

@@ -40,6 +40,26 @@ export default function CardsPage() {
   useEffect(() => { fetchCards(); }, [fetchCards]);
 
   const [crawlProgress, setCrawlProgress] = useState({ done: 0, total: 0, current: "" });
+  const [seeding, setSeeding] = useState(false);
+
+  const loadSampleData = async () => {
+    setSeeding(true);
+    setCrawlMsg("");
+    try {
+      const res = await fetch("/api/cards/seed", { method: "POST" });
+      const json = await res.json() as { ok: boolean; message?: string };
+      if (json.ok) {
+        setCrawlMsg(`✅ ${json.message ?? "샘플 데이터 추가 완료"}`);
+        await fetchCards();
+      } else {
+        setCrawlMsg("⚠️ 샘플 데이터 추가 실패");
+      }
+    } catch {
+      setCrawlMsg("⚠️ 서버 오류");
+    }
+    setSeeding(false);
+    setTimeout(() => setCrawlMsg(""), 5000);
+  };
 
   const startCrawl = async () => {
     setCrawling(true);
@@ -149,13 +169,22 @@ export default function CardsPage() {
     <div className="cards-page">
       <div className="cards-header">
         <h1 className="cards-title">💳 카드 혜택 비교</h1>
-        <button
-          className="btn btn-primary btn-sm"
-          onClick={startCrawl}
-          disabled={crawling}
-        >
-          {crawling ? "크롤링 중..." : "🔄 크롤링 실행"}
-        </button>
+        <div style={{ display: "flex", gap: "0.5rem" }}>
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={loadSampleData}
+            disabled={seeding || crawling}
+          >
+            {seeding ? "로드 중..." : "📂 샘플 데이터"}
+          </button>
+          <button
+            className="btn btn-primary btn-sm"
+            onClick={startCrawl}
+            disabled={crawling || seeding}
+          >
+            {crawling ? "크롤링 중..." : "🔄 크롤링 실행"}
+          </button>
+        </div>
       </div>
 
       {crawlMsg && <p className="crawl-msg">{crawlMsg}</p>}
@@ -185,11 +214,18 @@ export default function CardsPage() {
       {loading ? (
         <p className="cards-empty">로딩 중...</p>
       ) : filtered.length === 0 ? (
-        <p className="cards-empty">
-          {cards.length === 0
-            ? "저장된 카드가 없습니다. 크롤링을 실행해 주세요!"
-            : "검색 결과가 없습니다."}
-        </p>
+        <div style={{ textAlign: "center", padding: "3rem 0" }}>
+          <p className="cards-empty" style={{ marginBottom: "1rem" }}>
+            {cards.length === 0
+              ? "저장된 카드가 없습니다."
+              : "검색 결과가 없습니다."}
+          </p>
+          {cards.length === 0 && (
+            <button className="btn btn-primary btn-sm" onClick={loadSampleData} disabled={seeding}>
+              {seeding ? "로드 중..." : "📂 샘플 카드 데이터 불러오기"}
+            </button>
+          )}
+        </div>
       ) : (
         <div className="cards-grid">
           {filtered.map((c) => (

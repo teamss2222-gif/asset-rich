@@ -167,10 +167,10 @@ type AIIssueItem = {
 };
 
 async function fetchAzureOpenAIIssues(): Promise<AIIssueItem[] | null> {
-  const apiKey = process.env.AZURE_OPENAI_API_KEY?.trim();
-  const endpointRaw = (process.env.AZURE_OPENAI_ENDPOINT ?? "").trim();
-  const deployment = (process.env.AZURE_OPENAI_DEPLOYMENT_NAME ?? "").trim();
-  const apiVersion = (process.env.AZURE_OPENAI_API_VERSION ?? "2025-04-01-preview").trim();
+  const apiKey = process.env.AZURE_OPENAI_API_KEY?.split(/[\r\n]/)[0].trim();
+  const endpointRaw = (process.env.AZURE_OPENAI_ENDPOINT ?? "").split(/[\r\n]/)[0].trim();
+  const deployment = (process.env.AZURE_OPENAI_DEPLOYMENT_NAME ?? "").split(/[\r\n]/)[0].trim();
+  const apiVersion = (process.env.AZURE_OPENAI_API_VERSION ?? "2025-04-01-preview").split(/[\r\n]/)[0].trim();
 
   if (!apiKey || !endpointRaw || !deployment) return null;
 
