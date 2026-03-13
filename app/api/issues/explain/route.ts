@@ -11,16 +11,16 @@ const SYSTEM_PROMPT = `
 `.trim();
 
 function buildAzureUrl(): string | null {
-  const endpointRaw = process.env.AZURE_OPENAI_ENDPOINT ?? "";
-  const deployment = process.env.AZURE_OPENAI_DEPLOYMENT_NAME ?? "";
-  const apiVersion = process.env.AZURE_OPENAI_API_VERSION ?? "2025-04-01-preview";
+  const endpointRaw = (process.env.AZURE_OPENAI_ENDPOINT ?? "").trim();
+  const deployment = (process.env.AZURE_OPENAI_DEPLOYMENT_NAME ?? "").trim();
+  const apiVersion = (process.env.AZURE_OPENAI_API_VERSION ?? "2025-04-01-preview").trim();
   if (!endpointRaw || !deployment) return null;
   const origin = new URL(endpointRaw).origin;
   return `${origin}/openai/deployments/${encodeURIComponent(deployment)}/chat/completions?api-version=${encodeURIComponent(apiVersion)}`;
 }
 
 export async function POST(req: NextRequest) {
-  const apiKey = process.env.AZURE_OPENAI_API_KEY;
+  const apiKey = process.env.AZURE_OPENAI_API_KEY?.trim();
   const chatUrl = buildAzureUrl();
 
   if (!apiKey || !chatUrl) {
@@ -58,26 +58,33 @@ export async function POST(req: NextRequest) {
           { role: "system", content: sysPrompt },
           { role: "user", content: userMsg },
         ],
-        max_tokens: 700,
+        max_tokens: 400,
         temperature: 0.65,
       }),
-      signal: AbortSignal.timeout(15000),
+      signal: AbortSignal.timeout(8000),
     });
 
     if (!res.ok) {
       const errBody = await res.text().catch(() => "");
-      return apiError({ status: 502, code: "AZURE_API_ERROR", message: "Azure OpenAI API error", details: errBody });
+      return apiError({ status: 502, code: "AZURE_API_ERROR", message: `Azure OpenAI 오류 (${res.status})`, details: errBody });
     }
 
-    const data = await res.json() as { choices?: Array<{ message: { content: string } }> };
+    const raw = await res.text();
+    let data: { choices?: Array<{ message: { content: string } }> };
+    try {
+      data = JSON.parse(raw) as typeof data;
+    } catch {
+      return apiError({ status: 502, code: "PARSE_ERROR", message: "Azure 응답 파싱 실패", details: raw.slice(0, 300) });
+    }
     const explanation = data.choices?.[0]?.message?.content?.trim() ?? "";
     return apiOk({ keyword, explanation }, { message: "success" });
   } catch (err) {
+    const detail = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
     return apiError({
       status: 500,
       code: "EXPLAIN_ERROR",
-      message: "explain error",
-      details: err instanceof Error ? err.message : String(err),
+      message: `분석 실패 — ${detail}`,
+      details: detail,
     });
   }
 }
