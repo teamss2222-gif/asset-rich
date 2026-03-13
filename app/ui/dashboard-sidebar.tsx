@@ -6,11 +6,6 @@ import { usePathname } from "next/navigation";
 const navItems = [
   { href: "/dashboard", label: "개요", icon: "🏠" },
   { href: "/dashboard/asset", label: "자산관리", icon: "🪙" },
-  { href: "/dashboard/budget", label: "예산", icon: "⭐" },
-  { href: "/dashboard/goal", label: "목표", icon: "🍄" },
-  { href: "/dashboard/calendar", label: "캘린더", icon: "🏰" },
-  { href: "/dashboard/report", label: "리포트", icon: "🔥" },
-  { href: "/dashboard/document", label: "문서", icon: "📦" },
   { href: "/dashboard/cards", label: "카드혜택", icon: "💳" },
   { href: "/dashboard/game", label: "게임", icon: "🎮" },
   { href: "/dashboard/setting", label: "설정", icon: "🔧" },

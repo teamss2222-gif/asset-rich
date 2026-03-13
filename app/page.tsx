@@ -109,19 +109,63 @@ export default function Home() {
 
   return (
     <main className="landing-shell">
-      <section className="orb orb-left" aria-hidden="true" />
-      <section className="orb orb-right" aria-hidden="true" />
+      {/* Luxury background */}
+      <div className="landing-bg" aria-hidden="true">
+        <div className="landing-bg-orb landing-bg-orb-1" />
+        <div className="landing-bg-orb landing-bg-orb-2" />
+        <div className="landing-bg-orb landing-bg-orb-3" />
+        <div className="landing-bg-grid" />
+        <div className="landing-bg-line landing-bg-line-1" />
+        <div className="landing-bg-line landing-bg-line-2" />
+      </div>
 
-      <header className="topbar reveal">
-        <div className="top-actions">
-          <button className="btn btn-ghost" type="button" onClick={() => setMode("login")}>
-            로그인
-          </button>
-          <button className="btn btn-primary" type="button" onClick={() => setMode("signup")}>
-            회원가입
-          </button>
-        </div>
-      </header>
+      <div className="landing-inner">
+        <header className="topbar reveal">
+          <span className="brand">ASSET LAB</span>
+          <div className="top-actions">
+            <button className="btn btn-ghost" type="button" onClick={() => setMode("login")}>
+              로그인
+            </button>
+            <button className="btn btn-primary" type="button" onClick={() => setMode("signup")}>
+              시작하기
+            </button>
+          </div>
+        </header>
+
+        {/* Hero */}
+        <section className="landing-hero reveal reveal-delay-1">
+          <p className="landing-hero-eyebrow">Personal Finance Intelligence</p>
+          <h1 className="landing-hero-title">ASSET LAB</h1>
+          <p className="landing-hero-desc">
+            포트폴리오부터 카드 혜택까지<br />
+            당신의 자산을 하나의 공간에서
+          </p>
+          <div className="landing-hero-actions">
+            <button className="btn btn-primary landing-hero-btn" type="button" onClick={() => setMode("signup")}>
+              무료로 시작하기 →
+            </button>
+            <button className="btn btn-ghost landing-hero-btn" type="button" onClick={() => setMode("login")}>
+              로그인
+            </button>
+          </div>
+          <div className="landing-hero-stats">
+            <div className="landing-hero-stat">
+              <strong>실시간</strong>
+              <span>자산 현황</span>
+            </div>
+            <div className="landing-hero-stat-divider" />
+            <div className="landing-hero-stat">
+              <strong>카드</strong>
+              <span>혜택 비교</span>
+            </div>
+            <div className="landing-hero-stat-divider" />
+            <div className="landing-hero-stat">
+              <strong>포트폴리오</strong>
+              <span>분석</span>
+            </div>
+          </div>
+        </section>
+      </div>
 
       {mode !== "none" ? (
         <section className="auth-overlay" role="dialog" aria-modal="true">

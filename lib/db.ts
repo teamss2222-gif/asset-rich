@@ -30,6 +30,7 @@ let userProfilesTableInitialized = false;
 let integrationConnectionsTableInitialized = false;
 let backgroundJobsTableInitialized = false;
 let webhookEventsTableInitialized = false;
+let issuesTableInitialized = false;
 
 export async function ensureUsersTable() {
   if (usersTableInitialized) {
@@ -213,4 +214,31 @@ export async function ensureWebhookEventsTable() {
   `);
 
   webhookEventsTableInitialized = true;
+}
+
+export async function ensureIssuesTable() {
+  if (issuesTableInitialized) {
+    return;
+  }
+
+  const pool = getPool();
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS realtime_issues (
+      id SERIAL PRIMARY KEY,
+      rank INTEGER NOT NULL,
+      keyword TEXT NOT NULL,
+      source_ranks JSONB NOT NULL DEFAULT '{}',
+      score FLOAT NOT NULL DEFAULT 0,
+      gender_weights JSONB NOT NULL DEFAULT '{"male":0.5,"female":0.5}',
+      age_weights JSONB NOT NULL DEFAULT '{"10":0.2,"20":0.2,"30":0.2,"40":0.2,"50":0.1,"60":0.1}',
+      meta JSONB DEFAULT '{}',
+      collected_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_ri_collected_at
+    ON realtime_issues (collected_at DESC);
+  `);
+
+  issuesTableInitialized = true;
 }

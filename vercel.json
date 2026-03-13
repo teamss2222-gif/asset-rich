@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/issues/crawl",
+      "schedule": "0 0 * * *"
+    }
+  ]
+}
