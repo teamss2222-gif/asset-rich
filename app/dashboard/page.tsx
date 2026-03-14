@@ -14,6 +14,13 @@ const folders = [
     color: "folder-blue",
   },
   {
+    href: "/dashboard/schedule",
+    label: "시간표",
+    icon: "🗓️",
+    desc: "주간 일정 · 하루 요약 · 시간 관리",
+    color: "folder-teal",
+  },
+  {
     href: "/dashboard/issues",
     label: "실시간 이슈",
     icon: "🔥",
