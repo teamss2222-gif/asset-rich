@@ -41,6 +41,7 @@ export default function CardsPage() {
 
   const [crawlProgress, setCrawlProgress] = useState({ done: 0, total: 0, current: "" });
   const [seeding, setSeeding] = useState(false);
+  const [crawlSource, setCrawlSource] = useState("");
 
   const loadSampleData = async () => {
     setSeeding(true);
@@ -181,13 +182,23 @@ export default function CardsPage() {
             className="btn btn-primary btn-sm"
             onClick={startCrawl}
             disabled={crawling || seeding}
+            title="카드고릴라 사이트를 스캔하여 카드 ID를 자동 수집 후 크롤링"
           >
-            {crawling ? "크롤링 중..." : "🔄 크롤링 실행"}
+            {crawling
+              ? crawlProgress.total > 0
+                ? `🔄 ${crawlProgress.done}/${crawlProgress.total}`
+                : "🔍 ID 수집 중…"
+              : "🔄 크롤링 실행"}
           </button>
         </div>
       </div>
 
       {crawlMsg && <p className="crawl-msg">{crawlMsg}</p>}
+      {crawlSource && !crawling && (
+        <p className="crawl-msg" style={{ opacity: 0.65, fontSize: "0.75rem" }}>
+          ID 수집 경로: {crawlSource === "live" ? "카드고릴라 실시간 스캔" : crawlSource === "mixed" ? "혼합(live+폴백)" : "폴백 ID"}
+        </p>
+      )}
 
       {crawling && crawlProgress.total > 0 && (
         <div className="crawl-progress">

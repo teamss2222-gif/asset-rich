@@ -22,15 +22,104 @@ export interface CardBenefit {
   summary: string;
 }
 
-/* ── 인기 카드 ID 목록 (카드고릴라 상세 URL 기준) ── */
-const POPULAR_CARD_IDS = [
+/* ── 폴백용 하드코딩 ID (사이트 접근 실패 시 사용) ── */
+const FALLBACK_CARD_IDS = [
   13, 39, 51, 106, 466, 608, 716,
   2261, 2330, 2441, 2609, 2646, 2687,
   2759, 2835, 2928, 2749,
 ];
 
 export function getPopularCardIds() {
-  return POPULAR_CARD_IDS;
+  return FALLBACK_CARD_IDS;
+}
+
+/* ── 카드고릴라 목록 페이지에서 카드 ID 동적 수집 ── */
+// 카드고릴라의 카드 전체 목록, 회사별 목록, 인기 목록 등 여러 경로를 탐색해
+// /card/detail/{id} 패턴의 링크에서 ID를 추출합니다.
+export async function fetchCardIdsFromSite(options?: {
+  maxPages?: number;  // 페이지당 목록 페이지 최대 수 (기본 15)
+  delayMs?: number;   // 요청 간격 ms (기본 800)
+}): Promise<{ ids: number[]; source: string }> {
+  const maxPages = options?.maxPages ?? 15;
+  const delayMs  = options?.delayMs  ?? 800;
+
+  const idSet = new Set<number>();
+
+  const HEADERS = {
+    "User-Agent":
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+    Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "ko-KR,ko;q=0.9",
+    Referer: "https://www.card-gorilla.com/",
+  };
+
+  // 카드고릴라의 카드 목록 URL 패턴들
+  // /card/list?filt=POPULARITY  (인기순)
+  // /card/list?filt=ANNUALFEE   (연회비순)
+  // /card/all                   (전체)
+  const LIST_URLS = [
+    "https://www.card-gorilla.com/card/list?filt=POPULARITY",
+    "https://www.card-gorilla.com/card/list?filt=RECOMMAND",
+    "https://www.card-gorilla.com/card/list?filt=ANNUALFEE",
+    "https://www.card-gorilla.com/card/all",
+  ];
+
+  // 카드사별 목록 (카드고릴라 corp 코드)
+  // BC=3, 국민=4, 신한=6, 우리=7, 현대=9, 롯데=11, 삼성=14, 하나=16
+  const CORP_IDS = [3, 4, 6, 7, 9, 11, 14, 16];
+  for (const corp of CORP_IDS) {
+    LIST_URLS.push(`https://www.card-gorilla.com/card/list?corp=${corp}`);
+  }
+
+  const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+  const scrapeUrl = async (url: string): Promise<number[]> => {
+    const found: number[] = [];
+    try {
+      const res = await fetch(url, { headers: HEADERS });
+      if (!res.ok) return found;
+      const html = await res.text();
+      // /card/detail/숫자 패턴 추출
+      const matches = html.matchAll(/\/card\/detail\/(\d+)/g);
+      for (const m of matches) {
+        const id = parseInt(m[1], 10);
+        if (id > 0) found.push(id);
+      }
+    } catch { /* ignore */ }
+    return found;
+  };
+
+  // 1단계: 목록 페이지 1페이지씩 스크래핑
+  for (const baseUrl of LIST_URLS) {
+    // 1페이지 (기본)
+    const ids = await scrapeUrl(baseUrl);
+    ids.forEach(id => idSet.add(id));
+    await sleep(delayMs);
+
+    // 페이지네이션 (page=2~maxPages)
+    for (let p = 2; p <= maxPages; p++) {
+      const sep = baseUrl.includes("?") ? "&" : "?";
+      const pageUrl = `${baseUrl}${sep}page=${p}`;
+      const pageIds = await scrapeUrl(pageUrl);
+      if (pageIds.length === 0) break; // 더 이상 카드 없음
+      pageIds.forEach(id => idSet.add(id));
+      await sleep(delayMs);
+    }
+  }
+
+  // 2단계: 결과가 너무 적으면 폴백
+  if (idSet.size < FALLBACK_CARD_IDS.length) {
+    FALLBACK_CARD_IDS.forEach(id => idSet.add(id));
+    return {
+      ids: Array.from(idSet).sort((a, b) => a - b),
+      source: idSet.size === FALLBACK_CARD_IDS.length ? "fallback" : "mixed",
+    };
+  }
+
+  return {
+    ids: Array.from(idSet).sort((a, b) => a - b),
+    source: "live",
+  };
 }
 
 /* ── 단일 카드 크롤링 ── */
@@ -200,7 +289,7 @@ export async function crawlAll(
   delayMs = 1500,
   onProgress?: (done: number, total: number, card: string) => void,
 ) {
-  const ids = cardIds ?? POPULAR_CARD_IDS;
+  const ids = cardIds ?? FALLBACK_CARD_IDS;
   const results: { id: number; name: string; ok: boolean }[] = [];
 
   for (let i = 0; i < ids.length; i++) {
