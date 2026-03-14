@@ -1434,6 +1434,27 @@ body.bg-loggedin {
   border-color: rgba(10,132,255,0.3);
 }
 .sched-today-btn:hover { background: rgba(10,132,255,0.12); color: var(--accent-hover); }
+.sched-bulk-btn {
+  font-size: 0.72rem;
+  padding: 0.28rem 0.65rem;
+  color: var(--success);
+  border-color: rgba(48,209,88,0.3);
+  white-space: nowrap;
+}
+.sched-bulk-btn:hover { background: rgba(48,209,88,0.10); color: var(--success); }
+.sched-bulk-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* 일괄 변환 결과 메시지 */
+.sched-bulk-msg {
+  padding: 0.4rem 1rem;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--success);
+  background: rgba(48,209,88,0.08);
+  border-bottom: 1px solid rgba(48,209,88,0.2);
+  flex-shrink: 0;
+}
+.sched-bulk-msg.err { color: var(--danger); background: rgba(255,69,58,0.08); border-color: rgba(255,69,58,0.2); }
 
 /* ── Error bar ── */
 .sched-error-bar {

@@ -196,11 +196,39 @@ export async function PUT(request: NextRequest) {
     if (!body.id || !Number.isInteger(Number(body.id))) {
       return apiError({ status: 400, code: "BAD_REQUEST", message: "id가 필요합니다." });
     }
-    const { date, start, end, title, description, color } = validateEvent(body);
+    const { date, start, end, title, description, color, repeatType, repeatUntil } = validateEvent(body);
     const scope = body.scope === "all" ? "all" : "single";
 
     await ensureScheduleTables();
     const pool = getPool();
+
+    // 비반복 일정 → 반복 변환
+    if (scope === "single" && repeatType !== "none") {
+      const evCheck = await pool.query<{ repeat_group_id: string | null }>(
+        "SELECT repeat_group_id FROM schedule_events WHERE id = $1 AND username = $2",
+        [Number(body.id), username],
+      );
+      if (!evCheck.rowCount) {
+        return apiError({ status: 404, code: "NOT_FOUND", message: "일정을 찾을 수 없습니다." });
+      }
+      if (!evCheck.rows[0].repeat_group_id) {
+        // 기존 단일 일정 삭제 후 반복 시리즈 생성
+        await pool.query("DELETE FROM schedule_events WHERE id = $1 AND username = $2", [Number(body.id), username]);
+        const groupId = crypto.randomUUID();
+        const dates = generateRepeatDates(date, repeatType, repeatUntil!);
+        const events: ReturnType<typeof rowToEvent>[] = [];
+        for (const d of dates) {
+          const result = await pool.query<EventRow>(
+            `INSERT INTO schedule_events (username, event_date, start_time, end_time, title, description, color, repeat_type, repeat_group_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+             RETURNING id, event_date::text, start_time, end_time, title, description, color, repeat_type, repeat_group_id::text`,
+            [username, d, start, end, title, description, color, repeatType, groupId],
+          );
+          events.push(rowToEvent(result.rows[0]));
+        }
+        return apiOk({ events });
+      }
+    }
 
     if (scope === "single") {
       const result = await pool.query<EventRow>(

@@ -173,6 +173,7 @@ export default function TimetableClient() {
   });
   const [summaryDirty, setSummaryDirty] = useState<Record<string, boolean>>({});
   const [nowMinutes, setNowMinutes] = useState(getNowMinutes);
+  const [bulkMsg, setBulkMsg] = useState("");
   const todayStr = getTodayStr();
 
   // ── Drag & Drop state ─────────────────────────────────────────────────────
@@ -378,11 +379,13 @@ export default function TimetableClient() {
 
   const openEditModal = (ev: ScheduleEvent, e: React.MouseEvent) => {
     e.stopPropagation();
+    // 비반복 일정 수정 시 기본 종료일: 2026-07-22
+    const defaultUntil = "2026-07-22";
     setModal({
       open: true, mode: "edit", eventId: ev.id,
       date: ev.date, startTime: ev.startTime, endTime: ev.endTime,
       title: ev.title, description: ev.description, color: ev.color,
-      repeatType: "none", repeatUntil: "",
+      repeatType: "none", repeatUntil: defaultUntil,
       isRepeated: !!ev.repeatGroupId,
       scope: "single",
     });
@@ -408,6 +411,11 @@ export default function TimetableClient() {
       body.repeatType  = modal.repeatType;
       body.repeatUntil = modal.repeatUntil;
     }
+    // 수정 모드에서 비반복 → 반복 변환
+    if (modal.mode === "edit" && !modal.isRepeated && modal.repeatType !== "none") {
+      body.repeatType  = modal.repeatType;
+      body.repeatUntil = modal.repeatUntil;
+    }
     if (modal.mode === "edit") {
       body.scope = modal.scope;
     }
@@ -425,8 +433,8 @@ export default function TimetableClient() {
           ? res.data.events.filter((ev: ScheduleEvent) => weekDateSet.has(ev.date))
           : res.data.event ? [res.data.event] : [];
         setEvents(prev => [...prev, ...newEvts]);
-      } else if (modal.scope === "all") {
-        // 전체 반복 수정 → 현주 재로드
+      } else if (modal.scope === "all" || (res.data.events && (res.data.events as ScheduleEvent[]).length > 0)) {
+        // 전체 반복 수정 or 단일→반복 변환 → 현주 재로드
         await loadWeek(weekStart);
       } else if (res.data.event) {
         setEvents(prev => prev.map(ev => ev.id === modal.eventId ? res.data!.event! : ev));
@@ -457,7 +465,21 @@ export default function TimetableClient() {
     }
   };
 
-  // ── Time option lists ────────────────────────────────────────────────────
+  // ── Bulk repeat ──────────────────────────────────────────────────────────
+
+  const handleBulkRepeat = async () => {
+    if (!confirm("현재 저장된 비반복 일정을 전부 2026-07-22까지 매주 반복으로 변환합니다.\n계속하시겠습니까?")) return;
+    setSaving(true);
+    setBulkMsg("");
+    const res = await requestApi<{ converted: number }>("/api/schedule/bulk-repeat", { method: "POST" });
+    setSaving(false);
+    if (res.ok && res.data) {
+      setBulkMsg(`✅ ${res.data.converted}개 일정이 매주 반복으로 설정되었습니다.`);
+      await loadWeek(weekStart);
+    } else {
+      setBulkMsg("❌ 변환에 실패했습니다: " + res.message);
+    }
+  };
 
   const startOpts: { value: number; label: string }[] = [];
   for (let m = DAY_START; m <= 1430; m += 10) {
@@ -482,9 +504,17 @@ export default function TimetableClient() {
           <button className="sched-nav-btn sched-today-btn" onClick={goToday}>오늘</button>
         </div>
         <button className="sched-nav-btn" onClick={nextWeek}>다음 주 →</button>
+        <button
+          className="sched-nav-btn sched-bulk-btn"
+          onClick={handleBulkRepeat}
+          disabled={saving}
+          title="비반복 일정 전체를 2026-07-22까지 매주 반복으로 변환"
+        >
+          🔁 전체 반복 적용
+        </button>
       </div>
 
-      {error && <div className="sched-error-bar">{error}</div>}
+      {bulkMsg && <div className={`sched-bulk-msg${bulkMsg.startsWith("❌") ? " err" : ""}`}>{bulkMsg}</div>}
 
       {/* ── Day headers (sticky) ── */}
       <div className="sched-col-headers">
@@ -708,8 +738,8 @@ export default function TimetableClient() {
                 </div>
               </div>
 
-              {/* 반복 설정 (생성 시만) */}
-              {modal.mode === "create" && (
+              {/* 반복 설정 (생성 시 또는 비반복 편집 시) */}
+              {(modal.mode === "create" || (modal.mode === "edit" && !modal.isRepeated)) && (
                 <div className="sched-repeat-section">
                   <div className="sched-field">
                     <label className="sched-label">반복</label>
