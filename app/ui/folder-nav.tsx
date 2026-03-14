@@ -4,11 +4,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const folders = [
-  { href: "/dashboard/asset",   label: "자산관리",    icon: "🪙", openIcon: "📂", color: "amber"  },
-  { href: "/dashboard/cards",   label: "카드혜택",    icon: "💳", openIcon: "📂", color: "blue"   },
-  { href: "/dashboard/issues",  label: "실시간 이슈", icon: "🔥", openIcon: "📂", color: "red"    },
-  { href: "/dashboard/game",    label: "게임",        icon: "🎮", openIcon: "📂", color: "purple" },
-  { href: "/dashboard/setting", label: "설정",        icon: "⚙️", openIcon: "📂", color: "gray"   },
+  { href: "/dashboard/asset",    label: "자산관리",    icon: "🪙", openIcon: "📂", color: "amber"  },
+  { href: "/dashboard/cards",    label: "카드혜택",    icon: "💳", openIcon: "📂", color: "blue"   },
+  { href: "/dashboard/schedule", label: "시간표",      icon: "🗓️", openIcon: "📂", color: "teal"   },
+  { href: "/dashboard/issues",   label: "실시간 이슈", icon: "🔥", openIcon: "📂", color: "red"    },
+  { href: "/dashboard/game",     label: "게임",        icon: "🎮", openIcon: "📂", color: "purple" },
+  { href: "/dashboard/setting",  label: "설정",        icon: "⚙️", openIcon: "📂", color: "gray"   },
 ];
 
 export function FolderNav({ children }: { children: React.ReactNode }) {

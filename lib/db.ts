@@ -27,6 +27,7 @@ let usersTableInitialized = false;
 let assetHoldingsTableInitialized = false;
 let assetEntriesTableInitialized = false;
 let userProfilesTableInitialized = false;
+let scheduleTablesInitialized = false;
 let integrationConnectionsTableInitialized = false;
 let backgroundJobsTableInitialized = false;
 let webhookEventsTableInitialized = false;
@@ -241,4 +242,45 @@ export async function ensureIssuesTable() {
   `);
 
   issuesTableInitialized = true;
+}
+
+export async function ensureScheduleTables() {
+  if (scheduleTablesInitialized) return;
+
+  await ensureUsersTable();
+  const pool = getPool();
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS schedule_events (
+      id SERIAL PRIMARY KEY,
+      username VARCHAR(64) NOT NULL REFERENCES users(username) ON DELETE CASCADE,
+      event_date DATE NOT NULL,
+      start_time SMALLINT NOT NULL,
+      end_time SMALLINT NOT NULL,
+      title VARCHAR(200) NOT NULL DEFAULT '',
+      description TEXT NOT NULL DEFAULT '',
+      color VARCHAR(20) NOT NULL DEFAULT '#0a84ff',
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW(),
+      CHECK (start_time >= 420 AND start_time < 1440),
+      CHECK (end_time > 420 AND end_time <= 1440),
+      CHECK (end_time > start_time)
+    );
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS schedule_events_user_date_idx
+    ON schedule_events (username, event_date);
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS schedule_day_summaries (
+      username VARCHAR(64) NOT NULL REFERENCES users(username) ON DELETE CASCADE,
+      summary_date DATE NOT NULL,
+      summary TEXT NOT NULL DEFAULT '',
+      updated_at TIMESTAMP DEFAULT NOW(),
+      PRIMARY KEY (username, summary_date)
+    );
+  `);
+
+  scheduleTablesInitialized = true;
 }
