@@ -90,10 +90,10 @@ function getHoliday(dateStr: string): string | null {
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-const SLOT_HEIGHT = 20;   // px per 10 min
+const SLOT_HEIGHT = 10;   // px per 10 min
 const DAY_START   = 420;  // 07:00
 const DAY_END     = 1440; // 24:00
-const GRID_HEIGHT = (DAY_END - DAY_START) * 2; // 2040 px
+const GRID_HEIGHT = (DAY_END - DAY_START); // 1020 px
 const DAY_NAMES   = ["일", "월", "화", "수", "목", "금", "토"];
 const EVENT_COLORS = [
   "#0a84ff", "#30d158", "#ff9500", "#ff453a",
@@ -110,7 +110,7 @@ function minutesToTime(min: number): string {
 
 /** minutes → pixel offset from top of grid */
 function timeToY(minutes: number): number {
-  return (minutes - DAY_START) * 2; // /10*SLOT_HEIGHT = *2
+  return (minutes - DAY_START); // /10*SLOT_HEIGHT = *1 (1px per min)
 }
 
 function getWeekStart(date: Date): Date {
@@ -206,8 +206,8 @@ export default function TimetableClient() {
       const wds      = weekDaysRef.current;
       const colW     = rect.width / wds.length;
       const colIdx   = Math.max(0, Math.min(wds.length - 1, Math.floor((e.clientX - rect.left) / colW)));
-      const scrollTop = bodyRef.current.scrollTop;
-      const yInGrid  = e.clientY - rect.top + scrollTop;
+      // rect.top already reflects scroll (viewport-relative), so no scrollTop needed
+      const yInGrid  = e.clientY - rect.top;
       const rawStart = DAY_START + Math.round(yInGrid / SLOT_HEIGHT) * 10 - d.offsetMin;
       const dur      = d.ev.endTime - d.ev.startTime;
       const startMin = Math.max(DAY_START, Math.min(DAY_END - dur, rawStart));
@@ -568,17 +568,18 @@ export default function TimetableClient() {
                   {/* events */}
                   {dayEvts.map(ev => {
                     const top    = timeToY(ev.startTime);
-                    const height = Math.max(20, (ev.endTime - ev.startTime) * 2);
+                    const height = Math.max(SLOT_HEIGHT, ev.endTime - ev.startTime);
                     const isDragging = drag?.moved && drag.ev.id === ev.id;
                     return (
                       <div
                         key={ev.id}
                         className={`sched-event${ev.repeatGroupId ? " sched-event-repeat" : ""}${isDragging ? " sched-event-dragging" : ""}`}
                         style={{ top, height, background: ev.color }}
+                        onClick={e => e.stopPropagation()}
                         onMouseDown={e => {
                           e.stopPropagation();
-                          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                          const offsetPx  = e.clientY - rect.top;
+                          const evRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                          const offsetPx  = e.clientY - evRect.top;
                           const offsetMin = Math.max(0, Math.round(offsetPx / SLOT_HEIGHT) * 10);
                           setDrag({ ev, offsetMin, startClientX: e.clientX, startClientY: e.clientY, moved: false });
                         }}
@@ -588,7 +589,7 @@ export default function TimetableClient() {
                           {ev.repeatGroupId && <span className="sched-repeat-icon">↻</span>}
                         </div>
                         <div className="sched-event-title">{ev.title}</div>
-                        {ev.description && height >= 48 && (
+                        {ev.description && height >= 24 && (
                           <div className="sched-event-desc">{ev.description}</div>
                         )}
                       </div>
@@ -602,7 +603,7 @@ export default function TimetableClient() {
                         className={`sched-ghost${ghost.ctrlCopy ? " sched-ghost-copy" : ""}`}
                         style={{
                           top: timeToY(ghost.startMin),
-                          height: Math.max(20, dur * 2),
+                          height: Math.max(SLOT_HEIGHT, dur),
                           background: drag.ev.color,
                         }}
                       >
