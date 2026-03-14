@@ -1566,6 +1566,148 @@ body.bg-loggedin {
 .sched-summary-input:focus { color: var(--text-1); background: rgba(255,255,255,0.03); }
 .sched-summary-input::placeholder { color: var(--text-3); font-style: italic; }
 
+/* ── Achievement button in day header ── */
+.sched-achieve-btn {
+  width: 100%;
+  margin-top: 2px;
+  padding: 0.18rem 0.3rem;
+  font-size: 0.62rem;
+  font-weight: 600;
+  background: rgba(48,209,88,0.12);
+  border: 1px solid rgba(48,209,88,0.28);
+  border-radius: var(--r-sm);
+  color: #34c759;
+  cursor: pointer;
+  transition: background var(--t) var(--ease);
+  letter-spacing: -0.01em;
+}
+.sched-achieve-btn:hover { background: rgba(48,209,88,0.22); }
+
+/* ── Achievement popup modal ── */
+.sched-achieve-modal {
+  max-width: 580px;
+  width: 96vw;
+  max-height: 90vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.sched-achieve-body { display: flex; flex-direction: column; gap: 1rem; padding: 1rem; }
+.sched-achieve-loading { padding: 2rem; text-align: center; color: var(--text-3); font-size: 0.85rem; }
+
+/* ── Achievement section ── */
+.sched-achieve-section { display: flex; flex-direction: column; gap: 0.6rem; }
+.sched-achieve-section-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-1);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.35rem;
+}
+.sched-achieve-empty { font-size: 0.78rem; color: var(--text-3); padding: 0.3rem 0; }
+.sched-achieve-summary {
+  font-size: 0.75rem;
+  color: var(--text-2);
+  text-align: right;
+}
+
+/* ── Completion list ── */
+.sched-achieve-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.35rem; }
+.sched-achieve-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: var(--r-sm);
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  transition: background var(--t) var(--ease);
+}
+.sched-achieve-item.done { background: rgba(48,209,88,0.07); border-color: rgba(48,209,88,0.2); }
+.sched-achieve-check-label {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex: 1;
+  cursor: pointer;
+  font-size: 0.82rem;
+}
+.sched-achieve-checkbox {
+  width: 16px; height: 16px;
+  accent-color: #30d158;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.sched-achieve-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.sched-achieve-time { color: var(--text-3); font-size: 0.72rem; flex-shrink: 0; }
+.sched-achieve-title { color: var(--text-1); font-weight: 500; }
+.sched-achieve-badge {
+  font-size: 0.68rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: rgba(48,209,88,0.18);
+  color: #34c759;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* ── Mission list ── */
+.sched-mission-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.35rem; }
+.sched-mission-item {
+  padding: 0.45rem 0.6rem;
+  border-radius: var(--r-sm);
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+}
+.sched-mission-item.done { background: rgba(10,132,255,0.06); border-color: rgba(10,132,255,0.2); }
+.sched-mission-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.sched-mission-title { flex: 1; font-size: 0.82rem; color: var(--text-1); font-weight: 500; }
+.sched-mission-reward { font-size: 0.72rem; color: var(--text-2); flex-shrink: 0; }
+.sched-mission-actions { display: flex; gap: 0.25rem; flex-shrink: 0; }
+.sched-mission-btn {
+  background: none; border: none; cursor: pointer; font-size: 0.78rem;
+  padding: 0.1rem 0.25rem; border-radius: 4px; opacity: 0.6;
+  transition: opacity var(--t) var(--ease), background var(--t) var(--ease);
+}
+.sched-mission-btn:hover { opacity: 1; background: rgba(255,255,255,0.08); }
+.sched-mission-del:hover { background: rgba(255,69,58,0.15); }
+
+/* ── Mission edit inline ── */
+.sched-mission-edit { display: flex; flex-direction: column; gap: 0.4rem; }
+.sched-mission-edit-input { font-size: 0.82rem; }
+.sched-mission-edit-row { display: flex; align-items: center; gap: 0.4rem; }
+.sched-mission-reward-input { width: 72px; text-align: right; font-size: 0.82rem; }
+
+/* ── Mission add ── */
+.sched-mission-add {
+  display: flex; flex-direction: column; gap: 0.4rem;
+  padding: 0.65rem; border-radius: var(--r-sm);
+  background: rgba(255,255,255,0.02);
+  border: 1px dashed var(--border);
+  margin-top: 0.2rem;
+}
+.sched-mission-add-title { font-size: 0.83rem; }
+.sched-mission-add-row { display: flex; align-items: center; gap: 0.5rem; }
+
+/* ── Mission total reward ── */
+.sched-mission-total {
+  font-size: 0.8rem;
+  color: var(--text-2);
+  text-align: right;
+  padding-top: 0.2rem;
+  border-top: 1px solid var(--border);
+}
+.sched-mission-total strong { color: var(--accent); font-weight: 700; }
+
 /* ── Scrollable body ── */
 .sched-body {
   flex: 1;

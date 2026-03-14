@@ -291,5 +291,40 @@ export async function ensureScheduleTables() {
     );
   `);
 
+  // ── 성과 체크 (이벤트별 날짜별 성공 여부) ──
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS schedule_event_completions (
+      id SERIAL PRIMARY KEY,
+      username VARCHAR(64) NOT NULL REFERENCES users(username) ON DELETE CASCADE,
+      event_id INTEGER NOT NULL REFERENCES schedule_events(id) ON DELETE CASCADE,
+      completion_date DATE NOT NULL,
+      completed BOOLEAN NOT NULL DEFAULT FALSE,
+      UNIQUE(username, event_id, completion_date)
+    );
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS sec_user_date_idx
+    ON schedule_event_completions (username, completion_date);
+  `);
+
+  // ── 미션 ──
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS schedule_missions (
+      id SERIAL PRIMARY KEY,
+      username VARCHAR(64) NOT NULL REFERENCES users(username) ON DELETE CASCADE,
+      mission_date DATE NOT NULL,
+      title VARCHAR(200) NOT NULL DEFAULT '',
+      completed BOOLEAN NOT NULL DEFAULT FALSE,
+      reward_min SMALLINT NOT NULL DEFAULT 0,
+      sort_order SMALLINT NOT NULL DEFAULT 0,
+      created_at TIMESTAMP DEFAULT NOW(),
+      CHECK (reward_min >= 0 AND reward_min <= 1440)
+    );
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS sm_user_date_idx
+    ON schedule_missions (username, mission_date);
+  `);
+
   scheduleTablesInitialized = true;
 }

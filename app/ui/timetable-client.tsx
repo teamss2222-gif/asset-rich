@@ -15,6 +15,26 @@ type UndoAction =
   | { type: "update";  prev: ScheduleEvent[] }
   | { type: "delete";  events: ScheduleEvent[] }
   | { type: "reload" };
+
+// ── Achievement & Mission types ───────────────────────────────────────────────
+
+type EventCompletion = {
+  id: number;
+  title: string;
+  startTime: number;
+  endTime: number;
+  color: string;
+  completed: boolean;
+};
+
+type Mission = {
+  id: number;
+  date: string;
+  title: string;
+  completed: boolean;
+  rewardMin: number;
+  sortOrder: number;
+};
 import { requestApi } from "../../lib/http-client";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -195,6 +215,17 @@ export default function TimetableClient() {
   const [bulkMsg, setBulkMsg] = useState("");
   const [undoMsg, setUndoMsg]  = useState("");
   const todayStr = getTodayStr();
+
+  // ── Achievement popup state ───────────────────────────────────────────────
+  const [achieveDate, setAchieveDate]         = useState<string | null>(null); // open when not null
+  const [completions, setCompletions]         = useState<EventCompletion[]>([]);
+  const [missions, setMissions]               = useState<Mission[]>([]);
+  const [missionLoading, setMissionLoading]   = useState(false);
+  const [newMissionTitle, setNewMissionTitle] = useState("");
+  const [newMissionReward, setNewMissionReward] = useState(30);
+  const [editMissionId, setEditMissionId]     = useState<number | null>(null);
+  const [editMissionTitle, setEditMissionTitle] = useState("");
+  const [editMissionReward, setEditMissionReward] = useState(0);
 
   // undo stack (max 5)
   const undoStack = useRef<{ action: UndoAction; snapshot: ScheduleEvent[] }[]>([]);
@@ -544,6 +575,84 @@ export default function TimetableClient() {
     }
   };
 
+  // ── Achievement & Mission handlers ───────────────────────────────────────
+
+  const openAchieve = async (date: string) => {
+    setAchieveDate(date);
+    setMissionLoading(true);
+    setNewMissionTitle("");
+    setNewMissionReward(30);
+    setEditMissionId(null);
+    const [cRes, mRes] = await Promise.all([
+      requestApi<{ completions: EventCompletion[] }>(`/api/schedule/achievements?date=${date}`),
+      requestApi<{ missions: Mission[] }>(`/api/schedule/missions?date=${date}`),
+    ]);
+    if (cRes.ok && cRes.data) setCompletions(cRes.data.completions);
+    if (mRes.ok && mRes.data) setMissions(mRes.data.missions);
+    setMissionLoading(false);
+  };
+
+  const closeAchieve = () => {
+    setAchieveDate(null);
+    setEditMissionId(null);
+  };
+
+  const toggleCompletion = async (eventId: number, completed: boolean) => {
+    if (!achieveDate) return;
+    setCompletions(prev => prev.map(c => c.id === eventId ? { ...c, completed } : c));
+    await requestApi("/api/schedule/achievements", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ date: achieveDate, eventId, completed }),
+    });
+  };
+
+  const addMission = async () => {
+    if (!achieveDate || !newMissionTitle.trim()) return;
+    const res = await requestApi<{ mission: Mission }>("/api/schedule/missions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ date: achieveDate, title: newMissionTitle.trim(), rewardMin: newMissionReward }),
+    });
+    if (res.ok && res.data?.mission) {
+      setMissions(prev => [...prev, res.data!.mission!]);
+      setNewMissionTitle("");
+      setNewMissionReward(30);
+    }
+  };
+
+  const toggleMission = async (id: number, completed: boolean) => {
+    setMissions(prev => prev.map(m => m.id === id ? { ...m, completed } : m));
+    await requestApi("/api/schedule/missions", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, completed }),
+    });
+  };
+
+  const startEditMission = (m: Mission) => {
+    setEditMissionId(m.id);
+    setEditMissionTitle(m.title);
+    setEditMissionReward(m.rewardMin);
+  };
+
+  const saveEditMission = async (id: number) => {
+    const res = await requestApi<{ mission: Mission }>("/api/schedule/missions", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, title: editMissionTitle.trim(), rewardMin: editMissionReward }),
+    });
+    if (res.ok && res.data?.mission) {
+      setMissions(prev => prev.map(m => m.id === id ? res.data!.mission! : m));
+    }
+    setEditMissionId(null);
+  };
+
+  const deleteMission = async (id: number) => {
+    const res = await requestApi(`/api/schedule/missions?id=${id}`, { method: "DELETE" });
+    if (res.ok) setMissions(prev => prev.filter(m => m.id !== id));
+  };
+
   // ── Bulk repeat ──────────────────────────────────────────────────────────
 
   const handleBulkRepeat = async () => {
@@ -610,6 +719,13 @@ export default function TimetableClient() {
               <div className="sched-day-name">{DAY_NAMES[dayOfWeek]}</div>
               <div className={`sched-day-num${isToday ? " today-circle" : ""}${isHoliday && !isToday ? " holiday-num" : ""}`}>{dayNum}</div>
               {holiday && <div className="sched-holiday-name">{holiday}</div>}
+              <button
+                className="sched-achieve-btn"
+                onClick={() => openAchieve(date)}
+                title={`${date} 성과 & 미션`}
+              >
+                📊 성과
+              </button>
               <textarea
                 className="sched-summary-input"
                 placeholder="하루 요약..."
@@ -730,6 +846,168 @@ export default function TimetableClient() {
             })}
           </div>
 
+        </div>
+      )}
+
+      {/* ── Achievement & Mission Popup ── */}
+      {achieveDate && (
+        <div className="sched-modal-overlay" onClick={closeAchieve}>
+          <div className="sched-modal sched-achieve-modal" onClick={e => e.stopPropagation()}>
+            <div className="sched-modal-head">
+              <h3>📊 성과 & 미션 — {achieveDate}</h3>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={closeAchieve}>✕</button>
+            </div>
+
+            {missionLoading ? (
+              <div className="sched-achieve-loading">불러오는 중…</div>
+            ) : (
+              <div className="sched-achieve-body">
+
+                {/* ── 일정 성과 체크 ── */}
+                <div className="sched-achieve-section">
+                  <div className="sched-achieve-section-title">🗓️ 오늘의 일정 성과</div>
+                  {completions.length === 0 ? (
+                    <div className="sched-achieve-empty">이 날 등록된 일정이 없습니다.</div>
+                  ) : (
+                    <ul className="sched-achieve-list">
+                      {completions.map(c => (
+                        <li key={c.id} className={`sched-achieve-item${c.completed ? " done" : ""}`}>
+                          <label className="sched-achieve-check-label">
+                            <input
+                              type="checkbox"
+                              className="sched-achieve-checkbox"
+                              checked={c.completed}
+                              onChange={e => toggleCompletion(c.id, e.target.checked)}
+                            />
+                            <span
+                              className="sched-achieve-dot"
+                              style={{ background: c.color }}
+                            />
+                            <span className="sched-achieve-time">
+                              {(() => {
+                                const sh = String(Math.floor(c.startTime / 60)).padStart(2, "0");
+                                const sm = String(c.startTime % 60).padStart(2, "0");
+                                const eh = String(Math.floor(c.endTime / 60)).padStart(2, "0");
+                                const em = String(c.endTime % 60).padStart(2, "0");
+                                return `${sh}:${sm}–${eh}:${em}`;
+                              })()}
+                            </span>
+                            <span className="sched-achieve-title">{c.title}</span>
+                          </label>
+                          {c.completed && <span className="sched-achieve-badge">✓ 완료</span>}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {completions.length > 0 && (
+                    <div className="sched-achieve-summary">
+                      완료 {completions.filter(c => c.completed).length} / {completions.length}
+                    </div>
+                  )}
+                </div>
+
+                {/* ── 미션 ── */}
+                <div className="sched-achieve-section">
+                  <div className="sched-achieve-section-title">🎯 미션</div>
+
+                  {missions.length === 0 ? (
+                    <div className="sched-achieve-empty">아직 미션이 없습니다.</div>
+                  ) : (
+                    <ul className="sched-mission-list">
+                      {missions.map(m => (
+                        <li key={m.id} className={`sched-mission-item${m.completed ? " done" : ""}`}>
+                          {editMissionId === m.id ? (
+                            /* ── 편집 모드 ── */
+                            <div className="sched-mission-edit">
+                              <input
+                                className="sched-input sched-mission-edit-input"
+                                value={editMissionTitle}
+                                onChange={e => setEditMissionTitle(e.target.value)}
+                                onKeyDown={e => { if (e.key === "Enter") saveEditMission(m.id); }}
+                                autoFocus
+                                placeholder="미션명"
+                              />
+                              <div className="sched-mission-edit-row">
+                                <label className="sched-label">보상(분)</label>
+                                <input
+                                  type="number"
+                                  className="sched-input sched-mission-reward-input"
+                                  min={0} max={1440}
+                                  value={editMissionReward}
+                                  onChange={e => setEditMissionReward(Math.min(1440, Math.max(0, Number(e.target.value) || 0)))}
+                                />
+                                <button className="btn btn-primary btn-sm" onClick={() => saveEditMission(m.id)}>저장</button>
+                                <button className="btn btn-ghost btn-sm" onClick={() => setEditMissionId(null)}>취소</button>
+                              </div>
+                            </div>
+                          ) : (
+                            /* ── 보기 모드 ── */
+                            <div className="sched-mission-row">
+                              <label className="sched-achieve-check-label">
+                                <input
+                                  type="checkbox"
+                                  className="sched-achieve-checkbox"
+                                  checked={m.completed}
+                                  onChange={e => toggleMission(m.id, e.target.checked)}
+                                />
+                                <span className="sched-mission-title">{m.title}</span>
+                              </label>
+                              <span className="sched-mission-reward">
+                                🎁 {m.rewardMin}분
+                              </span>
+                              {m.completed && <span className="sched-achieve-badge">✓</span>}
+                              <div className="sched-mission-actions">
+                                <button className="sched-mission-btn" onClick={() => startEditMission(m)}>✏️</button>
+                                <button className="sched-mission-btn sched-mission-del" onClick={() => deleteMission(m.id)}>🗑️</button>
+                              </div>
+                            </div>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  {/* ── 미션 추가 폼 ── */}
+                  <div className="sched-mission-add">
+                    <input
+                      className="sched-input sched-mission-add-title"
+                      placeholder="새 미션 이름"
+                      value={newMissionTitle}
+                      maxLength={200}
+                      onChange={e => setNewMissionTitle(e.target.value)}
+                      onKeyDown={e => { if (e.key === "Enter") addMission(); }}
+                    />
+                    <div className="sched-mission-add-row">
+                      <label className="sched-label">보상(분)</label>
+                      <input
+                        type="number"
+                        className="sched-input sched-mission-reward-input"
+                        min={0} max={1440}
+                        value={newMissionReward}
+                        onChange={e => setNewMissionReward(Math.min(1440, Math.max(0, Number(e.target.value) || 0)))}
+                      />
+                      <button
+                        className="btn btn-primary btn-sm"
+                        disabled={!newMissionTitle.trim()}
+                        onClick={addMission}
+                      >
+                        + 추가
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 미션 완료 총 보상 */}
+                  {missions.some(m => m.completed) && (
+                    <div className="sched-mission-total">
+                      🏆 총 획득 보상:{" "}
+                      <strong>{missions.filter(m => m.completed).reduce((s, m) => s + m.rewardMin, 0)}분</strong>
+                    </div>
+                  )}
+                </div>
+
+              </div>
+            )}
+          </div>
         </div>
       )}
 
