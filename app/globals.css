@@ -1456,6 +1456,29 @@ body.bg-loggedin {
 }
 .sched-bulk-msg.err { color: var(--danger); background: rgba(255,69,58,0.08); border-color: rgba(255,69,58,0.2); }
 
+/* ── Undo toast ── */
+.sched-undo-toast {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  z-index: 9999;
+  padding: 0.6rem 1.2rem;
+  border-radius: 999px;
+  background: rgba(30, 30, 40, 0.92);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 500;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+  pointer-events: none;
+  animation: sched-toast-in 0.2s var(--ease-spring) both;
+}
+@keyframes sched-toast-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 /* ── Error bar ── */
 .sched-error-bar {
   padding: 0.45rem 1rem;
@@ -1825,7 +1848,12 @@ body.bg-loggedin {
   line-height: 1.5;
 }
 .sched-time-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
-.sched-color-row { display: flex; gap: 0.45rem; flex-wrap: wrap; }
+.sched-color-row {
+  display: grid;
+  grid-template-columns: repeat(12, 26px);
+  gap: 0.35rem 0.4rem;
+  flex-wrap: wrap;
+}
 .sched-color-swatch {
   width: 26px;
   height: 26px;

@@ -9,6 +9,12 @@ type DragState = {
   startClientY: number;
   moved: boolean;
 };
+
+type UndoAction =
+  | { type: "create";  events: ScheduleEvent[] }
+  | { type: "update";  prev: ScheduleEvent[] }
+  | { type: "delete";  events: ScheduleEvent[] }
+  | { type: "reload" };
 import { requestApi } from "../../lib/http-client";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -96,9 +102,22 @@ const DAY_END     = 1440; // 24:00
 const GRID_HEIGHT = (DAY_END - DAY_START); // 1020 px
 const DAY_NAMES   = ["일", "월", "화", "수", "목", "금", "토"];
 const EVENT_COLORS = [
-  "#0a84ff", "#30d158", "#ff9500", "#ff453a",
-  "#bf5af2", "#32ade6", "#ff375f", "#ffd60a",
+  // 그레이 (기본)
+  "#8e8e93",
+  // 파랑 계열
+  "#0a84ff", "#32ade6", "#5ac8fa", "#1c3d6e",
+  // 녹색 계열
+  "#30d158", "#34c759", "#00c7be", "#1b6e3d",
+  // 주황/노란
+  "#ff9500", "#ffd60a", "#f4e04d", "#c8a200",
+  // 빨강/분홍
+  "#ff453a", "#ff375f", "#ff6b6b", "#d93025",
+  // 보라/자주
+  "#bf5af2", "#9b59b6", "#7c3aed", "#5e2ca5",
+  // 중립 어둠
+  "#48484a", "#2c2c2e",
 ];
+const DEFAULT_COLOR = EVENT_COLORS[0]; // 회색
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -168,13 +187,33 @@ export default function TimetableClient() {
   const [saving, setSaving]       = useState(false);
   const [modal, setModal] = useState<ModalState>({
     open: false, mode: "create", date: "", startTime: 540, endTime: 600,
-    title: "", description: "", color: EVENT_COLORS[0],
+    title: "", description: "", color: DEFAULT_COLOR,
     repeatType: "none", repeatUntil: "", isRepeated: false, scope: "single",
   });
   const [summaryDirty, setSummaryDirty] = useState<Record<string, boolean>>({});
   const [nowMinutes, setNowMinutes] = useState(getNowMinutes);
   const [bulkMsg, setBulkMsg] = useState("");
+  const [undoMsg, setUndoMsg]  = useState("");
   const todayStr = getTodayStr();
+
+  // undo stack (max 5)
+  const undoStack = useRef<{ action: UndoAction; snapshot: ScheduleEvent[] }[]>([]);
+  const eventsRef = useRef<ScheduleEvent[]>([]);
+
+  const pushUndo = (action: UndoAction, snapshot: ScheduleEvent[]) => {
+    undoStack.current = [
+      ...undoStack.current.slice(-4),
+      { action, snapshot },
+    ];
+  };
+
+  const setEventsTracked = (updater: ScheduleEvent[] | ((prev: ScheduleEvent[]) => ScheduleEvent[])) => {
+    setEvents(prev => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      eventsRef.current = next;
+      return next;
+    });
+  };
 
   // ── Drag & Drop state ─────────────────────────────────────────────────────
   const [drag, setDrag]   = useState<DragState | null>(null);
@@ -194,6 +233,37 @@ export default function TimetableClient() {
   // loadWeekRef updated after loadWeek is declared (below)
 
   // mount-once drag listeners – read state via refs to avoid stale closures
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "z") {
+        e.preventDefault();
+        const entry = undoStack.current.pop();
+        if (!entry) {
+          setUndoMsg("❌ 되돌릴 항목이 없습니다.");
+          setTimeout(() => setUndoMsg(""), 2000);
+          return;
+        }
+        const { action, snapshot } = entry;
+        if (action.type === "create") {
+          // 생성 실행 취소 → 생성된 id들 삭제
+          const createdIds = new Set(action.events.map(ev => ev.id));
+          setEventsTracked(prev => prev.filter(ev => !createdIds.has(ev.id)));
+          // 서버에도 삭제
+          action.events.forEach(ev => requestApi(`/api/schedule?id=${ev.id}&scope=single`, { method: "DELETE" }));
+        } else if (action.type === "update" || action.type === "delete") {
+          // 스냅샷으로 복원
+          setEventsTracked(snapshot);
+        } else {
+          // reload 전 스냅샷
+          setEventsTracked(snapshot);
+        }
+        setUndoMsg(`↩ 되돌리기 완료 (${undoStack.current.length}개 더 가능)`);
+        setTimeout(() => setUndoMsg(""), 2000);
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
       const d = drag; // closure captures drag at effect-setup time
@@ -258,11 +328,14 @@ export default function TimetableClient() {
         });
         if (res.ok && res.data?.event) {
           const ne = res.data.event;
-          if (weekDaysRef.current.some(d => d.date === ne.date))
-            setEvents(prev => [...prev, ne]);
+          if (weekDaysRef.current.some(d => d.date === ne.date)) {
+            pushUndo({ type: "create", events: [ne] }, eventsRef.current);
+            setEventsTracked(prev => [...prev, ne]);
+          }
         }
       } else {
         // ── MOVE ──────────────────────────────────────────────────────────
+        const prevSnap = [...eventsRef.current];
         const res = await requestApi<{ event?: ScheduleEvent }>("/api/schedule", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -272,7 +345,8 @@ export default function TimetableClient() {
           }),
         });
         if (res.ok && res.data?.event) {
-          setEvents(prev => prev.map(x => x.id === ev.id ? res.data!.event! : x));
+          pushUndo({ type: "update", prev: prevSnap }, prevSnap);
+          setEventsTracked(prev => prev.map(x => x.id === ev.id ? res.data!.event! : x));
         } else if (res.ok) {
           await loadWeekRef.current(weekStartRef.current);
         }
@@ -304,7 +378,7 @@ export default function TimetableClient() {
     );
     setLoading(false);
     if (res.ok && res.data) {
-      setEvents(res.data.events ?? []);
+      setEventsTracked(res.data.events ?? []);
       setSummaries(res.data.summaries ?? {});
     } else {
       setError(res.message || "데이터를 불러오지 못했습니다.");
@@ -370,7 +444,7 @@ export default function TimetableClient() {
     const defaultUntil = defDate.toISOString().slice(0, 10);
     setModal({
       open: true, mode: "create", date,
-      startTime, endTime, title: "", description: "", color: EVENT_COLORS[0],
+      startTime, endTime, title: "", description: "", color: DEFAULT_COLOR,
       repeatType: "none", repeatUntil: defaultUntil, isRepeated: false, scope: "single",
     });
   };
@@ -432,12 +506,14 @@ export default function TimetableClient() {
         const newEvts = res.data.events
           ? res.data.events.filter((ev: ScheduleEvent) => weekDateSet.has(ev.date))
           : res.data.event ? [res.data.event] : [];
-        setEvents(prev => [...prev, ...newEvts]);
+        pushUndo({ type: "create", events: newEvts }, eventsRef.current);
+        setEventsTracked(prev => [...prev, ...newEvts]);
       } else if (modal.scope === "all" || (res.data.events && (res.data.events as ScheduleEvent[]).length > 0)) {
-        // 전체 반복 수정 or 단일→반복 변환 → 현주 재로드
+        pushUndo({ type: "reload" }, eventsRef.current);
         await loadWeek(weekStart);
       } else if (res.data.event) {
-        setEvents(prev => prev.map(ev => ev.id === modal.eventId ? res.data!.event! : ev));
+        pushUndo({ type: "update", prev: [...eventsRef.current] }, [...eventsRef.current]);
+        setEventsTracked(prev => prev.map(ev => ev.id === modal.eventId ? res.data!.event! : ev));
       }
       closeModal();
     } else {
@@ -455,9 +531,12 @@ export default function TimetableClient() {
     setSaving(false);
     if (res.ok) {
       if (modal.scope === "all") {
+        pushUndo({ type: "reload" }, eventsRef.current);
         await loadWeek(weekStart);
       } else {
-        setEvents(prev => prev.filter(ev => ev.id !== modal.eventId));
+        const deleted = eventsRef.current.filter(ev => ev.id === modal.eventId);
+        pushUndo({ type: "delete", events: deleted }, [...eventsRef.current]);
+        setEventsTracked(prev => prev.filter(ev => ev.id !== modal.eventId));
       }
       closeModal();
     } else {
@@ -515,6 +594,7 @@ export default function TimetableClient() {
       </div>
 
       {bulkMsg && <div className={`sched-bulk-msg${bulkMsg.startsWith("❌") ? " err" : ""}`}>{bulkMsg}</div>}
+      {undoMsg && <div className="sched-undo-toast">{undoMsg}</div>}
 
       {/* ── Day headers (sticky) ── */}
       <div className="sched-col-headers">
