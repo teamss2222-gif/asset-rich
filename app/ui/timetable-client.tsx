@@ -1,6 +1,14 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+
+type DragState = {
+  ev: ScheduleEvent;
+  offsetMin: number;      // minutes from event-top where pointer landed
+  startClientX: number;
+  startClientY: number;
+  moved: boolean;
+};
 import { requestApi } from "../../lib/http-client";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -167,6 +175,119 @@ export default function TimetableClient() {
   const [nowMinutes, setNowMinutes] = useState(getNowMinutes);
   const todayStr = getTodayStr();
 
+  // ── Drag & Drop state ─────────────────────────────────────────────────────
+  const [drag, setDrag]   = useState<DragState | null>(null);
+  const [ghost, setGhost] = useState<{ date: string; startMin: number; ctrlCopy: boolean } | null>(null);
+  const daysRef   = useRef<HTMLDivElement>(null);
+  const bodyRef   = useRef<HTMLDivElement>(null);
+  // always-fresh refs to avoid stale closures in the drag effect
+  const ghostRef     = useRef(ghost);
+  const weekDaysRef  = useRef<typeof weekDays>([]);
+  const weekStartRef = useRef(weekStart);
+  const loadWeekRef  = useRef<(ws: Date) => Promise<void>>(() => Promise.resolve());
+  weekDaysRef.current  = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(weekStart); d.setDate(d.getDate() + i);
+    return { date: formatDate(d), dayOfWeek: i, dayNum: d.getDate() };
+  });
+  weekStartRef.current = weekStart;
+  // loadWeekRef updated after loadWeek is declared (below)
+
+  // mount-once drag listeners – read state via refs to avoid stale closures
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      const d = drag; // closure captures drag at effect-setup time
+      if (!d || !daysRef.current || !bodyRef.current) return;
+      const dx = e.clientX - d.startClientX;
+      const dy = e.clientY - d.startClientY;
+      if (!d.moved && Math.sqrt(dx * dx + dy * dy) < 6) return;
+      if (!d.moved) setDrag(prev => prev ? { ...prev, moved: true } : null);
+
+      const rect     = daysRef.current.getBoundingClientRect();
+      const wds      = weekDaysRef.current;
+      const colW     = rect.width / wds.length;
+      const colIdx   = Math.max(0, Math.min(wds.length - 1, Math.floor((e.clientX - rect.left) / colW)));
+      const scrollTop = bodyRef.current.scrollTop;
+      const yInGrid  = e.clientY - rect.top + scrollTop;
+      const rawStart = DAY_START + Math.round(yInGrid / SLOT_HEIGHT) * 10 - d.offsetMin;
+      const dur      = d.ev.endTime - d.ev.startTime;
+      const startMin = Math.max(DAY_START, Math.min(DAY_END - dur, rawStart));
+      const g = { date: wds[colIdx].date, startMin, ctrlCopy: e.ctrlKey || e.metaKey };
+      ghostRef.current = g;
+      setGhost(g);
+    };
+
+    const onUp = async () => {
+      const currentDrag  = drag;
+      const currentGhost = ghostRef.current;
+      setDrag(null);
+      setGhost(null);
+      ghostRef.current = null;
+      if (!currentDrag) return;
+
+      if (!currentDrag.moved || !currentGhost) {
+        // short click → open edit modal
+        const ev = currentDrag.ev;
+        setModal({
+          open: true, mode: "edit", eventId: ev.id,
+          date: ev.date, startTime: ev.startTime, endTime: ev.endTime,
+          title: ev.title, description: ev.description, color: ev.color,
+          repeatType: "none", repeatUntil: "",
+          isRepeated: !!ev.repeatGroupId, scope: "single",
+        });
+        return;
+      }
+
+      const { ev } = currentDrag;
+      const dur      = ev.endTime - ev.startTime;
+      const newStart = currentGhost.startMin;
+      const newEnd   = Math.min(DAY_END, newStart + dur);
+      const newDate  = currentGhost.date;
+      if (!currentGhost.ctrlCopy && newDate === ev.date && newStart === ev.startTime) return;
+
+      setSaving(true);
+      if (currentGhost.ctrlCopy) {
+        // ── COPY ──────────────────────────────────────────────────────────
+        const res = await requestApi<{ event?: ScheduleEvent; events?: ScheduleEvent[] }>("/api/schedule", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            date: newDate, startTime: newStart, endTime: newEnd,
+            title: ev.title, description: ev.description, color: ev.color,
+          }),
+        });
+        if (res.ok && res.data?.event) {
+          const ne = res.data.event;
+          if (weekDaysRef.current.some(d => d.date === ne.date))
+            setEvents(prev => [...prev, ne]);
+        }
+      } else {
+        // ── MOVE ──────────────────────────────────────────────────────────
+        const res = await requestApi<{ event?: ScheduleEvent }>("/api/schedule", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: ev.id, date: newDate, startTime: newStart, endTime: newEnd,
+            title: ev.title, description: ev.description, color: ev.color, scope: "single",
+          }),
+        });
+        if (res.ok && res.data?.event) {
+          setEvents(prev => prev.map(x => x.id === ev.id ? res.data!.event! : x));
+        } else if (res.ok) {
+          await loadWeekRef.current(weekStartRef.current);
+        }
+      }
+      setSaving(false);
+    };
+
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup",   onUp);
+    return () => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup",   onUp);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drag]);
+
   // refresh "now" indicator every minute
   useEffect(() => {
     const id = setInterval(() => setNowMinutes(getNowMinutes()), 60_000);
@@ -190,6 +311,8 @@ export default function TimetableClient() {
   }, []);
 
   useEffect(() => { loadWeek(weekStart); }, [weekStart, loadWeek]);
+  // keep loadWeekRef always up-to-date
+  loadWeekRef.current = loadWeek;
 
   // ── Derived data ────────────────────────────────────────────────────────
 
@@ -394,7 +517,11 @@ export default function TimetableClient() {
       {loading ? (
         <div className="sched-loading">불러오는 중…</div>
       ) : (
-        <div className="sched-body">
+        <div
+          className="sched-body"
+          ref={bodyRef}
+          style={{ cursor: drag?.moved ? (ghost?.ctrlCopy ? "copy" : "grabbing") : undefined }}
+        >
 
           {/* Time labels column */}
           <div className="sched-time-col" style={{ height: GRID_HEIGHT }}>
@@ -406,7 +533,7 @@ export default function TimetableClient() {
           </div>
 
           {/* 7 day event columns */}
-          <div className="sched-days">
+          <div className="sched-days" ref={daysRef}>
             {weekDays.map(({ date, dayOfWeek }) => {
               const isToday   = date === todayStr;
               const isHoliday = !!getHoliday(date);
@@ -442,12 +569,19 @@ export default function TimetableClient() {
                   {dayEvts.map(ev => {
                     const top    = timeToY(ev.startTime);
                     const height = Math.max(20, (ev.endTime - ev.startTime) * 2);
+                    const isDragging = drag?.moved && drag.ev.id === ev.id;
                     return (
                       <div
                         key={ev.id}
-                        className={`sched-event${ev.repeatGroupId ? " sched-event-repeat" : ""}`}
+                        className={`sched-event${ev.repeatGroupId ? " sched-event-repeat" : ""}${isDragging ? " sched-event-dragging" : ""}`}
                         style={{ top, height, background: ev.color }}
-                        onClick={e => openEditModal(ev, e)}
+                        onMouseDown={e => {
+                          e.stopPropagation();
+                          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                          const offsetPx  = e.clientY - rect.top;
+                          const offsetMin = Math.max(0, Math.round(offsetPx / SLOT_HEIGHT) * 10);
+                          setDrag({ ev, offsetMin, startClientX: e.clientX, startClientY: e.clientY, moved: false });
+                        }}
                       >
                         <div className="sched-event-time">
                           {minutesToTime(ev.startTime)}–{minutesToTime(ev.endTime)}
@@ -460,6 +594,26 @@ export default function TimetableClient() {
                       </div>
                     );
                   })}
+                  {/* drag ghost */}
+                  {ghost && ghost.date === date && drag && (() => {
+                    const dur = drag.ev.endTime - drag.ev.startTime;
+                    return (
+                      <div
+                        className={`sched-ghost${ghost.ctrlCopy ? " sched-ghost-copy" : ""}`}
+                        style={{
+                          top: timeToY(ghost.startMin),
+                          height: Math.max(20, dur * 2),
+                          background: drag.ev.color,
+                        }}
+                      >
+                        {ghost.ctrlCopy && <div className="sched-ghost-badge">복사</div>}
+                        <div className="sched-event-time">
+                          {minutesToTime(ghost.startMin)}–{minutesToTime(Math.min(DAY_END, ghost.startMin + dur))}
+                        </div>
+                        <div className="sched-event-title">{drag.ev.title}</div>
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })}
