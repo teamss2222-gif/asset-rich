@@ -13,6 +13,8 @@ type ScheduleEvent = {
   title: string;
   description: string;
   color: string;
+  repeatType: string;        // 'none' | 'daily' | 'weekly'
+  repeatGroupId: string | null;
 };
 
 type ModalState = {
@@ -25,6 +27,10 @@ type ModalState = {
   title: string;
   description: string;
   color: string;
+  repeatType: "none" | "daily" | "weekly";  // create에서만 사용
+  repeatUntil: string;                       // create에서만 사용
+  isRepeated: boolean;                       // edit 시 반복 일정인지 여부
+  scope: "single" | "all";                   // edit/delete 범위
 };
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -108,6 +114,7 @@ export default function TimetableClient() {
   const [modal, setModal] = useState<ModalState>({
     open: false, mode: "create", date: "", startTime: 540, endTime: 600,
     title: "", description: "", color: EVENT_COLORS[0],
+    repeatType: "none", repeatUntil: "", isRepeated: false, scope: "single",
   });
   const [summaryDirty, setSummaryDirty] = useState<Record<string, boolean>>({});
   const [nowMinutes, setNowMinutes] = useState(getNowMinutes);
@@ -186,9 +193,14 @@ export default function TimetableClient() {
     const snapped    = DAY_START + Math.round(y / SLOT_HEIGHT) * 10;
     const startTime  = Math.max(DAY_START, Math.min(1430, snapped));
     const endTime    = Math.min(DAY_END, startTime + 60);
+    // 반복 종료 기본값: 해당 날짜로부터 4주 후
+    const defDate = new Date(date + "T12:00:00");
+    defDate.setDate(defDate.getDate() + 28);
+    const defaultUntil = defDate.toISOString().slice(0, 10);
     setModal({
       open: true, mode: "create", date,
       startTime, endTime, title: "", description: "", color: EVENT_COLORS[0],
+      repeatType: "none", repeatUntil: defaultUntil, isRepeated: false, scope: "single",
     });
   };
 
@@ -200,6 +212,9 @@ export default function TimetableClient() {
       open: true, mode: "edit", eventId: ev.id,
       date: ev.date, startTime: ev.startTime, endTime: ev.endTime,
       title: ev.title, description: ev.description, color: ev.color,
+      repeatType: "none", repeatUntil: "",
+      isRepeated: !!ev.repeatGroupId,
+      scope: "single",
     });
   };
 
@@ -210,7 +225,7 @@ export default function TimetableClient() {
   const handleSave = async () => {
     if (!modal.title.trim()) return;
     setSaving(true);
-    const body = {
+    const body: Record<string, unknown> = {
       ...(modal.mode === "edit" ? { id: modal.eventId } : {}),
       date: modal.date,
       startTime: modal.startTime,
@@ -219,17 +234,32 @@ export default function TimetableClient() {
       description: modal.description.trim(),
       color: modal.color,
     };
-    const res = await requestApi<{ event: ScheduleEvent }>("/api/schedule", {
+    if (modal.mode === "create" && modal.repeatType !== "none") {
+      body.repeatType  = modal.repeatType;
+      body.repeatUntil = modal.repeatUntil;
+    }
+    if (modal.mode === "edit") {
+      body.scope = modal.scope;
+    }
+
+    const res = await requestApi<{ event?: ScheduleEvent; events?: ScheduleEvent[] }>("/api/schedule", {
       method: modal.mode === "create" ? "POST" : "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
     setSaving(false);
-    if (res.ok && res.data?.event) {
+    if (res.ok && res.data) {
       if (modal.mode === "create") {
-        setEvents(prev => [...prev, res.data!.event]);
-      } else {
-        setEvents(prev => prev.map(ev => ev.id === modal.eventId ? res.data!.event : ev));
+        const weekDateSet = new Set(weekDays.map(d => d.date));
+        const newEvts = res.data.events
+          ? res.data.events.filter((ev: ScheduleEvent) => weekDateSet.has(ev.date))
+          : res.data.event ? [res.data.event] : [];
+        setEvents(prev => [...prev, ...newEvts]);
+      } else if (modal.scope === "all") {
+        // 전체 반복 수정 → 현주 재로드
+        await loadWeek(weekStart);
+      } else if (res.data.event) {
+        setEvents(prev => prev.map(ev => ev.id === modal.eventId ? res.data!.event! : ev));
       }
       closeModal();
     } else {
@@ -240,10 +270,17 @@ export default function TimetableClient() {
   const handleDelete = async () => {
     if (!modal.eventId) return;
     setSaving(true);
-    const res = await requestApi(`/api/schedule?id=${modal.eventId}`, { method: "DELETE" });
+    const res = await requestApi(
+      `/api/schedule?id=${modal.eventId}&scope=${modal.scope}`,
+      { method: "DELETE" },
+    );
     setSaving(false);
     if (res.ok) {
-      setEvents(prev => prev.filter(ev => ev.id !== modal.eventId));
+      if (modal.scope === "all") {
+        await loadWeek(weekStart);
+      } else {
+        setEvents(prev => prev.filter(ev => ev.id !== modal.eventId));
+      }
       closeModal();
     } else {
       setError(res.message || "삭제에 실패했습니다.");
@@ -351,12 +388,13 @@ export default function TimetableClient() {
                     return (
                       <div
                         key={ev.id}
-                        className="sched-event"
+                        className={`sched-event${ev.repeatGroupId ? " sched-event-repeat" : ""}`}
                         style={{ top, height, background: ev.color }}
                         onClick={e => openEditModal(ev, e)}
                       >
                         <div className="sched-event-time">
                           {minutesToTime(ev.startTime)}–{minutesToTime(ev.endTime)}
+                          {ev.repeatGroupId && <span className="sched-repeat-icon">↻</span>}
                         </div>
                         <div className="sched-event-title">{ev.title}</div>
                         {ev.description && height >= 48 && (
@@ -457,7 +495,88 @@ export default function TimetableClient() {
                   ))}
                 </div>
               </div>
-            </div>
+
+              {/* 반복 설정 (생성 시만) */}
+              {modal.mode === "create" && (
+                <div className="sched-repeat-section">
+                  <div className="sched-field">
+                    <label className="sched-label">반복</label>
+                    <select
+                      className="sched-select"
+                      value={modal.repeatType}
+                      onChange={e => setModal(prev => ({
+                        ...prev,
+                        repeatType: e.target.value as "none" | "daily" | "weekly",
+                      }))}
+                    >
+                      <option value="none">반복 없음</option>
+                      <option value="daily">매일</option>
+                      <option value="weekly">매주 (같은 요일)</option>
+                    </select>
+                  </div>
+                  {modal.repeatType !== "none" && (
+                    <div className="sched-field">
+                      <label className="sched-label">반복 종료 날짜</label>
+                      <input
+                        type="date"
+                        className="sched-input"
+                        value={modal.repeatUntil}
+                        min={(() => {
+                          const d = new Date(modal.date + "T12:00:00");
+                          d.setDate(d.getDate() + (modal.repeatType === "daily" ? 1 : 7));
+                          return d.toISOString().slice(0, 10);
+                        })()}
+                        max={(() => {
+                          const d = new Date(modal.date + "T12:00:00");
+                          d.setFullYear(d.getFullYear() + 1);
+                          return d.toISOString().slice(0, 10);
+                        })()}
+                        onChange={e => setModal(prev => ({ ...prev, repeatUntil: e.target.value }))}
+                      />
+                      <span className="sched-repeat-hint">
+                        {modal.repeatType === "daily" ? "매일" : "매주"} · 
+                        {modal.repeatUntil && (
+                          <>
+                            {modal.repeatType === "daily"
+                              ? Math.round((new Date(modal.repeatUntil + "T12:00:00").getTime() - new Date(modal.date + "T12:00:00").getTime()) / 86400000) + 1
+                              : Math.round((new Date(modal.repeatUntil + "T12:00:00").getTime() - new Date(modal.date + "T12:00:00").getTime()) / (86400000 * 7)) + 1
+                            }월 생성
+                          </>
+                        )}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* 수정 범위 (반복 일정 편집 시) */}
+              {modal.mode === "edit" && modal.isRepeated && (
+                <div className="sched-scope-section">
+                  <div className="sched-scope-label">반복 일정 수정/삭제 범위</div>
+                  <label className="sched-scope-option">
+                    <input
+                      type="radio"
+                      name="scope"
+                      value="single"
+                      checked={modal.scope === "single"}
+                      onChange={() => setModal(prev => ({ ...prev, scope: "single" }))}
+                    />
+                    <span>이 일정만</span>
+                  </label>
+                  <label className="sched-scope-option">
+                    <input
+                      type="radio"
+                      name="scope"
+                      value="all"
+                      checked={modal.scope === "all"}
+                      onChange={() => setModal(prev => ({ ...prev, scope: "all" }))}
+                    />
+                    <span>모든 반복 일정</span>
+                  </label>
+                </div>
+              )}
+
+            </div>{/* /sched-form */}
 
             {/* Actions */}
             <div className="sched-modal-actions">

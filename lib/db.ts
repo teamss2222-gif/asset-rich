@@ -260,6 +260,8 @@ export async function ensureScheduleTables() {
       title VARCHAR(200) NOT NULL DEFAULT '',
       description TEXT NOT NULL DEFAULT '',
       color VARCHAR(20) NOT NULL DEFAULT '#0a84ff',
+      repeat_type VARCHAR(10) NOT NULL DEFAULT 'none',
+      repeat_group_id UUID,
       created_at TIMESTAMP DEFAULT NOW(),
       updated_at TIMESTAMP DEFAULT NOW(),
       CHECK (start_time >= 420 AND start_time < 1440),
@@ -267,9 +269,16 @@ export async function ensureScheduleTables() {
       CHECK (end_time > start_time)
     );
   `);
+  // 기존 테이블에 컬럼 추가 (idempotent)
+  await pool.query(`ALTER TABLE schedule_events ADD COLUMN IF NOT EXISTS repeat_type VARCHAR(10) NOT NULL DEFAULT 'none';`);
+  await pool.query(`ALTER TABLE schedule_events ADD COLUMN IF NOT EXISTS repeat_group_id UUID;`);
   await pool.query(`
     CREATE INDEX IF NOT EXISTS schedule_events_user_date_idx
     ON schedule_events (username, event_date);
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS schedule_events_group_idx
+    ON schedule_events (repeat_group_id) WHERE repeat_group_id IS NOT NULL;
   `);
 
   await pool.query(`

@@ -1762,6 +1762,63 @@ body.bg-loggedin {
 }
 .sched-btn-delete:hover { background: rgba(255,69,58,0.12) !important; }
 
+/* ── Repeat event indicator ── */
+.sched-repeat-icon {
+  margin-left: 3px;
+  font-size: 0.65rem;
+  opacity: 0.85;
+}
+
+/* ── Repeat settings section (create modal) ── */
+.sched-repeat-section {
+  display: grid;
+  gap: 0.7rem;
+  padding: 0.75rem;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+.sched-repeat-hint {
+  display: block;
+  margin-top: 0.28rem;
+  font-size: 0.7rem;
+  color: var(--text-3);
+  letter-spacing: -0.005em;
+}
+
+/* ── Scope selector (edit modal for repeated events) ── */
+.sched-scope-section {
+  padding: 0.7rem 0.75rem;
+  background: rgba(10,132,255,0.07);
+  border: 1px solid rgba(10,132,255,0.2);
+  border-radius: var(--r-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+.sched-scope-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: -0.01em;
+  margin-bottom: 0.15rem;
+}
+.sched-scope-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+  color: var(--text-1);
+  cursor: pointer;
+  letter-spacing: -0.01em;
+}
+.sched-scope-option input[type="radio"] {
+  accent-color: var(--accent);
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+}
+
 @media (max-width: 860px) {
   .sched-shell { height: calc(100vh - 160px); }
   .sched-nav-title { font-size: 0.78rem; }
