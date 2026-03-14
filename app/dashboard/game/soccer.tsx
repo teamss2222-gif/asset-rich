@@ -84,6 +84,15 @@ export default function SoccerGame({ onBack }: { onBack: () => void }) {
 
   const restart = useCallback(() => { stateRef.current = initState(); setScores([0, 0]); setWinner(0); }, []);
 
+  /* ── Touch helpers ── */
+  const pressKey   = (code: string) => keysRef.current.add(code);
+  const releaseKey = (code: string) => keysRef.current.delete(code);
+  const triggerSpace = () => {
+    const s = stateRef.current;
+    if (s.winner) { restart(); return; }
+    if (s.paused) { s.paused = false; }
+  };
+
   useEffect(() => {
     const kd = (e: KeyboardEvent) => {
       keysRef.current.add(e.code);
@@ -282,13 +291,45 @@ export default function SoccerGame({ onBack }: { onBack: () => void }) {
         <p>CPU를 이겨라! {WIN_SCORE}골 먼저 넣으면 승리!</p>
       </div>
       <canvas ref={canvasRef} width={W} height={H} className="game-canvas" tabIndex={0} />
+
+      {/* ── Touch Controls ── */}
+      <div className="game-touch-pad">
+        <div className="game-touch-left">
+          <button
+            className="game-touch-btn"
+            onTouchStart={e => { e.preventDefault(); pressKey("KeyA"); }}
+            onTouchEnd={() => releaseKey("KeyA")}
+            onTouchCancel={() => releaseKey("KeyA")}
+          >◄</button>
+          <button
+            className="game-touch-btn"
+            onTouchStart={e => { e.preventDefault(); pressKey("KeyD"); }}
+            onTouchEnd={() => releaseKey("KeyD")}
+            onTouchCancel={() => releaseKey("KeyD")}
+          >►</button>
+        </div>
+        <div className="game-touch-right">
+          <button
+            className="game-touch-btn game-touch-jump"
+            onTouchStart={e => { e.preventDefault(); pressKey("KeyW"); }}
+            onTouchEnd={() => releaseKey("KeyW")}
+            onTouchCancel={() => releaseKey("KeyW")}
+          >↑ 점프</button>
+          <button
+            className="game-touch-btn game-touch-action"
+            onTouchStart={e => { e.preventDefault(); triggerSpace(); }}
+            onTouchEnd={() => releaseKey("Space")}
+            onTouchCancel={() => releaseKey("Space")}
+          >▶ 킵오프</button>
+        </div>
+      </div>
       <div className="game-controls">
         <div className="game-score-display">
           <span>P1: <strong style={{ color: "#E40058" }}>{scores[0]}</strong></span>
           <span>CPU: <strong style={{ color: "#0058F8" }}>{scores[1]}</strong></span>
         </div>
         {winner > 0 && <button className="btn btn-primary" onClick={restart}>다시 하기</button>}
-        <p className="game-help">⌨️ A/D 이동 · W 점프 · SPACE 킥오프</p>
+        <p className="game-help">⌨️ A/D 이동 · W 점프 · SPACE 킵오프 &nbsp;| ️📱 터치 패드 지원</p>
       </div>
     </div>
   );

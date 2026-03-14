@@ -457,6 +457,29 @@ export default function CoinRunGame({ onBack }: { onBack: () => void }) {
         className="game-canvas"
         tabIndex={0}
       />
+
+      {/* ── Touch Controls (coin-run: tap to jump) ── */}
+      <div className="game-touch-pad game-touch-pad-single">
+        <button
+          className="game-touch-btn game-touch-jump game-touch-wide"
+          onTouchStart={e => {
+            e.preventDefault();
+            const s = stateRef.current;
+            if (!s.started) { s.started = true; return; }
+            if (s.gameOver) { resetGame(); return; }
+            if (s.isOnGround) {
+              s.playerVy = JUMP_FORCE;
+              s.isOnGround = false;
+              s.canDoubleJump = true;
+            } else if (s.canDoubleJump) {
+              s.playerVy = JUMP_FORCE;
+              s.canDoubleJump = false;
+            }
+          }}
+        >
+          ↑ 점프 (2수 = 이단점프)
+        </button>
+      </div>
       <div className="game-controls">
         <div className="game-score-display">
           <span>현재 점수: <strong>{displayScore}</strong></span>
