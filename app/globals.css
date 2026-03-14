@@ -1472,6 +1472,8 @@ body.bg-loggedin {
 .sched-day-sun .sched-day-num  { color: var(--danger); }
 .sched-day-sat .sched-day-name { color: #5aadff; }
 .sched-day-sat .sched-day-num  { color: #5aadff; }
+/* 공휴일 날짜 번호 빨간색 */
+.sched-day-num.holiday-num { color: var(--danger); }
 
 .sched-day-name {
   font-size: 0.68rem;
@@ -1578,6 +1580,24 @@ body.bg-loggedin {
 }
 .sched-col-sun { background: rgba(255,69,58,0.025); }
 .sched-col-sat { background: rgba(10,132,255,0.025); }
+/* 공휴일 열 배경 */
+.sched-col-holiday { background: rgba(255,69,58,0.07) !important; }
+
+/* ── Day header 공휴일 ── */
+.sched-day-head.holiday { background: rgba(255,69,58,0.10); }
+.sched-holiday-name {
+  font-size: 0.58rem;
+  font-weight: 600;
+  color: var(--danger);
+  text-align: center;
+  letter-spacing: -0.005em;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  padding: 0 2px;
+}
 
 /* ── Grid lines ── */
 .sched-hour-line {
@@ -1713,18 +1733,32 @@ body.bg-loggedin {
   outline: none;
   transition: border-color var(--t) var(--ease), box-shadow var(--t) var(--ease);
   letter-spacing: -0.01em;
+  /* 다크 테마에서 브라우저 네이티브 UI도 다크로 렌더 */
+  color-scheme: dark;
 }
 .sched-input:focus, .sched-select:focus, .sched-textarea:focus {
   border-color: var(--border-focus);
   box-shadow: 0 0 0 3px rgba(10,132,255,0.15);
+  background: rgba(255,255,255,0.08);
+}
+/* 달력 아이콘 색 반전 */
+.sched-input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.75) brightness(1.5);
+  cursor: pointer;
+  padding: 0 2px;
 }
 .sched-select {
   appearance: none;
   -webkit-appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='rgba(255,255,255,0.35)'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='rgba(255,255,255,0.45)'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 0.65rem center;
   padding-right: 2rem;
+}
+/* 셀렉트 드롭다운 옵션 (윈도우 시스템 드롭다운 강제 다크) */
+.sched-select option {
+  background: #1c1c22;
+  color: rgba(255,255,255,0.95);
 }
 .sched-textarea {
   resize: none;
