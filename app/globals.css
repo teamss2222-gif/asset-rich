@@ -470,6 +470,7 @@ body.bg-loggedin {
 .folder-teal   .folder-icon-lg { background: linear-gradient(145deg, #5ee7d0 0%, #0d9488 100%); }
 .folder-gray   .folder-icon-lg { background: linear-gradient(145deg, #aeaeb2 0%, #48484a 100%); }
 .folder-orange .folder-icon-lg { background: linear-gradient(145deg, #ffb340 0%, #c93d00 100%); }
+.folder-indigo .folder-icon-lg { background: linear-gradient(145deg, #a5b4fc 0%, #4338ca 100%); }
 
 .folder-amber:hover  { box-shadow: 0 10px 36px rgba(255,162,0,0.22),  var(--shadow); }
 .folder-green:hover  { box-shadow: 0 10px 36px rgba(48,209,88,0.18),   var(--shadow); }
@@ -479,6 +480,7 @@ body.bg-loggedin {
 .folder-teal:hover   { box-shadow: 0 10px 36px rgba(94,234,212,0.18),  var(--shadow); }
 .folder-gray:hover   { box-shadow: 0 10px 36px rgba(174,174,178,0.16), var(--shadow); }
 .folder-orange:hover { box-shadow: 0 10px 36px rgba(255,149,0,0.22),   var(--shadow); }
+.folder-indigo:hover { box-shadow: 0 10px 36px rgba(99,102,241,0.22),  var(--shadow); }
 
 /* ══════════════════════════
    DOMAIN PAGE
@@ -1188,6 +1190,7 @@ body.bg-loggedin {
 .fnav-tab-gray.active   { border-top: 2px solid #aeaeb2; }
 .fnav-tab-green.active  { border-top: 2px solid #30d158; }
 .fnav-tab-orange.active { border-top: 2px solid #ff9500; }
+.fnav-tab-indigo.active { border-top: 2px solid #818cf8; }
 .fnav-tab-icon  { font-size: 0.88rem; }
 .fnav-tab-label { font-size: 0.8rem; }
 .fnav-content {
@@ -2604,3 +2607,167 @@ body.bg-loggedin {
 }
 .pomo-modal-input:focus { border-color: var(--border-hover); }
 .pomo-modal-actions { display: flex; justify-content: flex-end; gap: 0.5rem; }
+
+/* ══════════════════════════════════════════
+   DICTIONARY PAGE
+   ══════════════════════════════════════════ */
+.dict-page { display: flex; flex-direction: column; gap: 1.5rem; max-width: 760px; margin: 0 auto; }
+
+.dict-title    { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.04em; color: var(--text-1); }
+.dict-subtitle { font-size: 0.8rem; color: var(--text-2); margin-top: 0.2rem; }
+
+/* 오늘의 단어 */
+.dict-daily-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+.dict-daily-card {
+  display: flex; flex-direction: column; gap: 0.3rem;
+  padding: 1rem 1.1rem;
+  background: linear-gradient(135deg, rgba(99,102,241,0.08), rgba(99,102,241,0.03));
+  border: 1px solid rgba(99,102,241,0.2);
+  border-radius: var(--r);
+}
+.dict-daily-card.sodam {
+  background: linear-gradient(135deg, rgba(94,92,230,0.08), rgba(94,92,230,0.03));
+  border-color: rgba(94,92,230,0.2);
+}
+.dict-daily-label { font-size: 0.7rem; color: var(--text-2); font-weight: 500; }
+.dict-daily-word  { font-size: 1.15rem; font-weight: 800; color: var(--text-1); letter-spacing: -0.03em; }
+.dict-daily-hanja { font-size: 0.8rem; color: var(--text-2); }
+.dict-daily-sodam { font-size: 0.92rem; font-weight: 700; color: var(--text-1); line-height: 1.4; }
+.dict-daily-meaning { font-size: 0.76rem; color: var(--text-2); line-height: 1.45; margin-top: 0.1rem; }
+
+/* 탭 바 */
+.dict-tabs {
+  display: flex; gap: 0.3rem;
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r);
+  padding: 0.3rem;
+}
+.dict-tab-btn {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 0.15rem;
+  padding: 0.5rem 0.4rem; border: none; border-radius: calc(var(--r) - 2px);
+  background: transparent; cursor: pointer; font-size: 0.8rem; color: var(--text-2);
+  font-weight: 500; letter-spacing: -0.01em;
+  transition: background var(--t) var(--ease), color var(--t) var(--ease);
+}
+.dict-tab-btn:hover { background: var(--border); color: var(--text-1); }
+.dict-tab-btn.active { background: rgba(99,102,241,0.15); color: #818cf8; font-weight: 700; }
+
+/* 탭 콘텐츠 */
+.dict-tab-content { display: flex; flex-direction: column; gap: 1rem; }
+
+/* 검색 바 */
+.dict-search-bar { display: flex; gap: 0.4rem; position: relative; }
+.dict-search-input {
+  flex: 1; padding: 0.65rem 0.9rem; font-size: 0.92rem;
+  background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--r-sm);
+  color: var(--text-1); outline: none;
+  transition: border-color var(--t) var(--ease);
+}
+.dict-search-input:focus { border-color: #818cf8; }
+.dict-clear-btn {
+  position: absolute; right: 72px; top: 50%; transform: translateY(-50%);
+  background: transparent; border: none; color: var(--text-3); cursor: pointer; font-size: 0.9rem;
+  padding: 0 0.4rem;
+}
+.dict-search-btn {
+  padding: 0.65rem 1.1rem; font-size: 0.85rem; font-weight: 600; white-space: nowrap;
+  background: rgba(99,102,241,0.15); border: 1px solid rgba(99,102,241,0.3);
+  border-radius: var(--r-sm); color: #818cf8; cursor: pointer;
+  transition: background var(--t) var(--ease);
+}
+.dict-search-btn:hover { background: rgba(99,102,241,0.25); }
+
+/* 태그 스트립 */
+.dict-tag-strip { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.dict-tag {
+  padding: 0.25rem 0.7rem; font-size: 0.75rem; border-radius: 999px;
+  border: 1px solid var(--border); background: transparent; color: var(--text-2); cursor: pointer;
+  transition: background var(--t) var(--ease), color var(--t) var(--ease), border-color var(--t) var(--ease);
+}
+.dict-tag:hover { border-color: var(--border-hover); color: var(--text-1); }
+.dict-tag.active { background: rgba(99,102,241,0.15); border-color: rgba(99,102,241,0.4); color: #818cf8; font-weight: 600; }
+
+/* 개수 */
+.dict-count { font-size: 0.75rem; color: var(--text-3); }
+
+/* 로딩, 빈 상태 */
+.dict-loading { text-align: center; padding: 2rem; color: var(--text-2); font-size: 0.9rem; }
+.dict-empty   { text-align: center; padding: 2rem; color: var(--text-2); font-size: 0.9rem; }
+.dict-hint    { padding: 1.5rem 1rem; text-align: center; color: var(--text-2); font-size: 0.85rem; line-height: 1.6; }
+.dict-error   { color: var(--danger); font-size: 0.88rem; }
+
+/* 번역 결과 */
+.dict-translate-wrap { display: flex; flex-direction: column; gap: 1rem; }
+.dict-result-card {
+  display: flex; flex-direction: column; gap: 0.75rem;
+  padding: 1.1rem 1.2rem;
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r);
+}
+.dict-query-row  { display: flex; align-items: baseline; gap: 0.6rem; }
+.dict-query-word { font-size: 1.4rem; font-weight: 800; color: var(--text-1); letter-spacing: -0.04em; }
+.dict-phonetic   { font-size: 0.85rem; color: var(--text-2); font-family: serif; }
+.dict-translation-box {
+  display: flex; align-items: center; gap: 0.6rem;
+  padding: 0.8rem 1rem;
+  background: rgba(99,102,241,0.07); border-radius: var(--r-sm);
+}
+.dict-translation-arrow { font-size: 1.2rem; }
+.dict-translation-text  { font-size: 1.25rem; font-weight: 700; color: #818cf8; letter-spacing: -0.03em; }
+
+/* 영어 사전 정의 */
+.dict-definitions { display: flex; flex-direction: column; gap: 0.75rem; border-top: 1px solid var(--border); padding-top: 0.75rem; }
+.dict-meaning-group { display: flex; flex-direction: column; gap: 0.4rem; }
+.dict-pos { font-size: 0.72rem; font-weight: 600; color: #818cf8; text-transform: uppercase; letter-spacing: 0.06em; }
+.dict-def-item  { display: flex; flex-direction: column; gap: 0.15rem; padding-left: 0.8rem; border-left: 2px solid var(--border); }
+.dict-def-text  { font-size: 0.85rem; color: var(--text-1); line-height: 1.5; }
+.dict-def-example { font-size: 0.78rem; color: var(--text-2); font-style: italic; }
+
+/* 카드 리스트 */
+.dict-card-list { display: flex; flex-direction: column; gap: 0.5rem; }
+.dict-card {
+  width: 100%; text-align: left;
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r);
+  cursor: pointer; padding: 0; overflow: hidden;
+  transition: border-color var(--t) var(--ease), background var(--t) var(--ease);
+}
+.dict-card:hover { border-color: var(--border-hover); background: var(--bg-card-hover); }
+.dict-card.open  { border-color: rgba(99,102,241,0.35); }
+
+.dict-card-main {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
+  padding: 0.75rem 1rem;
+}
+.dict-card-left  { display: flex; align-items: baseline; gap: 0.6rem; min-width: 0; }
+.dict-card-right { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
+
+.dict-gosa-word { font-size: 1rem; font-weight: 700; color: var(--text-1); letter-spacing: -0.02em; white-space: nowrap; }
+.dict-gosa-hanja { font-size: 0.78rem; color: var(--text-3); flex-shrink: 0; }
+.dict-sodam-text { font-size: 0.9rem; font-weight: 600; color: var(--text-1); line-height: 1.4; word-break: keep-all; }
+.dict-card-summary { font-size: 0.76rem; color: var(--text-2); max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dict-card-arrow { font-size: 1.1rem; color: var(--text-3); transition: transform var(--t) var(--ease); display: inline-block; }
+.dict-card-arrow.open { transform: rotate(90deg); }
+
+.dict-card-body {
+  display: flex; flex-direction: column; gap: 0.5rem;
+  padding: 0 1rem 0.9rem;
+  border-top: 1px solid var(--border);
+  padding-top: 0.75rem;
+  animation: dictFadeIn 0.15s ease;
+}
+@keyframes dictFadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+.dict-card-meaning { font-size: 0.88rem; color: var(--text-1); line-height: 1.6; }
+.dict-card-english {
+  display: flex; align-items: flex-start; gap: 0.5rem;
+  font-size: 0.82rem; color: var(--text-2); font-style: italic; line-height: 1.5;
+}
+.dict-card-en-label { flex-shrink: 0; }
+.dict-card-tags { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.2rem; }
+.dict-tag-badge {
+  font-size: 0.7rem; padding: 2px 8px; border-radius: 999px;
+  background: rgba(99,102,241,0.1); color: #818cf8; border: 1px solid rgba(99,102,241,0.2);
+}
+
+@media (max-width: 640px) {
+  .dict-daily-row { grid-template-columns: 1fr; }
+  .dict-tab-btn span:last-child { display: none; }
+  .dict-card-summary { display: none; }
+}

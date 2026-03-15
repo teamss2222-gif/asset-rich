@@ -49,6 +49,13 @@ const folders = [
     color: "folder-orange",
   },
   {
+    href: "/dashboard/dict",
+    label: "사전",
+    icon: "📖",
+    desc: "영한·한영 · 고사성어 · 속담",
+    color: "folder-indigo",
+  },
+  {
     href: "/dashboard/setting",
     label: "설정",
     icon: "⚙️",
