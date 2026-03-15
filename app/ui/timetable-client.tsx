@@ -29,7 +29,6 @@ type EventCompletion = {
 
 type Mission = {
   id: number;
-  date: string;
   title: string;
   completed: boolean;
   rewardMin: number;
@@ -222,7 +221,6 @@ export default function TimetableClient() {
 
   // ── Mission panel state ───────────────────────────────────────────────────
   const [missionPanelOpen, setMissionPanelOpen]   = useState(false);
-  const [missionPanelDate, setMissionPanelDate]   = useState<string>("");
   const [missions, setMissions]                   = useState<Mission[]>([]);
   const [missionLoading, setMissionLoading]       = useState(false);
   const [newMissionTitle, setNewMissionTitle]     = useState("");
@@ -589,7 +587,10 @@ export default function TimetableClient() {
       requestApi<{ missions: Mission[]; weekTotal: number }>(`/api/schedule/missions?date=${date}`),
     ]);
     if (cRes.ok && cRes.data) setCompletions(cRes.data.completions);
-    if (mRes.ok && mRes.data) setWeekTotalReward(mRes.data.weekTotal ?? 0);
+    if (mRes.ok && mRes.data) {
+      setMissions(mRes.data.missions);
+      setWeekTotalReward(mRes.data.weekTotal ?? 0);
+    }
     setMissionLoading(false);
   };
 
@@ -609,11 +610,11 @@ export default function TimetableClient() {
   };
 
   const addMission = async () => {
-    if (!missionPanelDate || !newMissionTitle.trim()) return;
+    if (!newMissionTitle.trim()) return;
     const res = await requestApi<{ mission: Mission }>("/api/schedule/missions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ date: missionPanelDate, title: newMissionTitle.trim(), rewardMin: newMissionReward }),
+      body: JSON.stringify({ title: newMissionTitle.trim(), rewardMin: newMissionReward }),
     });
     if (res.ok && res.data?.mission) {
       setMissions(prev => [...prev, res.data!.mission!]);
@@ -629,7 +630,7 @@ export default function TimetableClient() {
     await requestApi("/api/schedule/missions", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, completed }),
+      body: JSON.stringify({ id, date: achieveDate, completed }),
     });
   };
 
@@ -658,30 +659,14 @@ export default function TimetableClient() {
 
   // ── Mission panel ─────────────────────────────────────────────────────────
 
-  const openMissionPanel = async (date: string) => {
+  const openMissionPanel = async () => {
     setMissionPanelOpen(true);
-    setMissionPanelDate(date);
     setMissionLoading(true);
     setNewMissionTitle("");
     setNewMissionReward(30);
     setEditMissionId(null);
-    const mRes = await requestApi<{ missions: Mission[]; weekTotal: number }>(`/api/schedule/missions?date=${date}`);
-    if (mRes.ok && mRes.data) {
-      setMissions(mRes.data.missions);
-      setWeekTotalReward(mRes.data.weekTotal ?? 0);
-    }
-    setMissionLoading(false);
-  };
-
-  const switchMissionPanelDate = async (date: string) => {
-    setMissionPanelDate(date);
-    setMissionLoading(true);
-    setEditMissionId(null);
-    const mRes = await requestApi<{ missions: Mission[]; weekTotal: number }>(`/api/schedule/missions?date=${date}`);
-    if (mRes.ok && mRes.data) {
-      setMissions(mRes.data.missions);
-      setWeekTotalReward(mRes.data.weekTotal ?? 0);
-    }
+    const mRes = await requestApi<{ missions: Mission[] }>(`/api/schedule/missions`);
+    if (mRes.ok && mRes.data) setMissions(mRes.data.missions);
     setMissionLoading(false);
   };
 
@@ -710,7 +695,7 @@ export default function TimetableClient() {
         <button className="sched-nav-btn" onClick={nextWeek}>다음 주 →</button>
         <button
           className="sched-nav-btn sched-mission-nav-btn"
-          onClick={() => openMissionPanel(todayStr)}
+          onClick={() => openMissionPanel()}
           title="미션 관리"
         >
           🎯 미션
@@ -742,7 +727,7 @@ export default function TimetableClient() {
               </button>
               <textarea
                 className="sched-summary-input"
-                placeholder="하루 요약..."
+                placeholder="이슈 & 메모 기록..."
                 value={summaries[date] ?? ""}
                 onChange={e => handleSummaryChange(date, e.target.value)}
                 onBlur={() => saveSummary(date)}
@@ -922,13 +907,43 @@ export default function TimetableClient() {
                   )}
                 </div>
 
+                {/* ── 오늘의 미션 체크 ── */}
+                <div className="sched-achieve-section">
+                  <div className="sched-achieve-section-title">🎯 오늘의 미션</div>
+                  {missions.length === 0 ? (
+                    <div className="sched-achieve-empty">등록된 미션이 없습니다. 상단 🎯 미션에서 추가하세요.</div>
+                  ) : (
+                    <ul className="sched-mission-list">
+                      {missions.map(m => (
+                        <li key={m.id} className={`sched-mission-item${m.completed ? " done" : ""}`}>
+                          <div className="sched-mission-row">
+                            <label className="sched-achieve-check-label">
+                              <input
+                                type="checkbox"
+                                className="sched-achieve-checkbox"
+                                checked={m.completed}
+                                onChange={e => toggleMission(m.id, e.target.checked)}
+                              />
+                              <span className="sched-mission-title">{m.title}</span>
+                            </label>
+                            <span className={`sched-mission-reward${m.rewardMin < 0 ? " neg" : ""}`}>
+                              {m.rewardMin >= 0 ? "🎁 +" : "⚠️ "}{m.rewardMin}분
+                            </span>
+                            {m.completed && <span className="sched-achieve-badge">✓</span>}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+
                 {/* ── 이번 주 미션 누적 보상 ── */}
                 <div className="sched-achieve-section">
-                  <div className="sched-achieve-section-title">🏆 이번 주 미션 누적 보상</div>
                   <div className="sched-mission-total-week">
-                    <span className={weekTotalReward >= 0 ? "sched-reward-pos" : "sched-reward-neg"}>
+                    🏆 이번 주 누적:{" "}
+                    <strong className={weekTotalReward >= 0 ? "sched-reward-pos" : "sched-reward-neg"}>
                       {weekTotalReward >= 0 ? "+" : ""}{weekTotalReward}분
-                    </span>
+                    </strong>
                     <span className="sched-mission-reset-note">(매주 일요일 리셋)</span>
                   </div>
                 </div>
@@ -944,21 +959,8 @@ export default function TimetableClient() {
         <div className="sched-modal-overlay" onClick={() => setMissionPanelOpen(false)}>
           <div className="sched-modal sched-mission-panel" onClick={e => e.stopPropagation()}>
             <div className="sched-modal-head">
-              <h3>🎯 미션 설정</h3>
+              <h3>🎯 미션 관리 (공통)</h3>
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => setMissionPanelOpen(false)}>✕</button>
-            </div>
-
-            {/* Day tabs */}
-            <div className="sched-mission-day-tabs">
-              {weekDays.map(({ date, dayOfWeek }) => (
-                <button
-                  key={date}
-                  className={`sched-mission-day-tab${missionPanelDate === date ? " active" : ""}`}
-                  onClick={() => switchMissionPanelDate(date)}
-                >
-                  {DAY_NAMES[dayOfWeek]}
-                </button>
-              ))}
             </div>
 
             {missionLoading ? (
@@ -966,14 +968,14 @@ export default function TimetableClient() {
             ) : (
               <div className="sched-achieve-body">
                 <div className="sched-achieve-section">
-                  <div className="sched-achieve-section-title">{missionPanelDate} 미션</div>
+                  <div className="sched-achieve-section-title">전체 미션 목록</div>
 
                   {missions.length === 0 ? (
-                    <div className="sched-achieve-empty">아직 미션이 없습니다.</div>
+                    <div className="sched-achieve-empty">아직 미션이 없습니다. 아래에서 추가하세요.</div>
                   ) : (
                     <ul className="sched-mission-list">
                       {missions.map(m => (
-                        <li key={m.id} className={`sched-mission-item${m.completed ? " done" : ""}`}>
+                        <li key={m.id} className="sched-mission-item">
                           {editMissionId === m.id ? (
                             <div className="sched-mission-edit">
                               <input
@@ -999,19 +1001,10 @@ export default function TimetableClient() {
                             </div>
                           ) : (
                             <div className="sched-mission-row">
-                              <label className="sched-achieve-check-label">
-                                <input
-                                  type="checkbox"
-                                  className="sched-achieve-checkbox"
-                                  checked={m.completed}
-                                  onChange={e => toggleMission(m.id, e.target.checked)}
-                                />
-                                <span className="sched-mission-title">{m.title}</span>
-                              </label>
+                              <span className="sched-mission-title">{m.title}</span>
                               <span className={`sched-mission-reward${m.rewardMin < 0 ? " neg" : ""}`}>
                                 {m.rewardMin >= 0 ? "🎁 +" : "⚠️ "}{m.rewardMin}분
                               </span>
-                              {m.completed && <span className="sched-achieve-badge">✓</span>}
                               <div className="sched-mission-actions">
                                 <button className="sched-mission-btn" onClick={() => startEditMission(m)}>✏️</button>
                                 <button className="sched-mission-btn sched-mission-del" onClick={() => deleteMission(m.id)}>🗑️</button>
@@ -1023,7 +1016,7 @@ export default function TimetableClient() {
                     </ul>
                   )}
 
-                  {/* Mission add form */}
+                  {/* 미션 추가 폼 */}
                   <div className="sched-mission-add">
                     <input
                       className="sched-input sched-mission-add-title"
@@ -1050,17 +1043,6 @@ export default function TimetableClient() {
                         + 추가
                       </button>
                     </div>
-                  </div>
-                </div>
-
-                {/* 이번 주 누적 보상 */}
-                <div className="sched-achieve-section">
-                  <div className="sched-mission-total-week">
-                    🏆 이번 주 누적:{" "}
-                    <strong className={weekTotalReward >= 0 ? "sched-reward-pos" : "sched-reward-neg"}>
-                      {weekTotalReward >= 0 ? "+" : ""}{weekTotalReward}분
-                    </strong>
-                    <span className="sched-mission-reset-note">(매주 일요일 리셋)</span>
                   </div>
                 </div>
               </div>

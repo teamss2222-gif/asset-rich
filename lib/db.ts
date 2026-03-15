@@ -308,37 +308,36 @@ export async function ensureScheduleTables() {
     ON schedule_event_completions (username, completion_date);
   `);
 
-  // ── 미션 ──
+  // ── 미션 템플릿 (공통 등록) ──
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS schedule_missions (
+    CREATE TABLE IF NOT EXISTS schedule_mission_templates (
       id SERIAL PRIMARY KEY,
       username VARCHAR(64) NOT NULL REFERENCES users(username) ON DELETE CASCADE,
-      mission_date DATE NOT NULL,
       title VARCHAR(200) NOT NULL DEFAULT '',
-      completed BOOLEAN NOT NULL DEFAULT FALSE,
       reward_min SMALLINT NOT NULL DEFAULT 0,
       sort_order SMALLINT NOT NULL DEFAULT 0,
       created_at TIMESTAMP DEFAULT NOW()
     );
   `);
-  // 기존 reward_min >= 0 제약 제거 (마이너스 보상 허용)
   await pool.query(`
-    DO $$
-    DECLARE r record;
-    BEGIN
-      FOR r IN
-        SELECT conname FROM pg_constraint
-        WHERE conrelid = 'schedule_missions'::regclass
-          AND contype = 'c'
-          AND pg_get_constraintdef(oid) LIKE '%reward_min%'
-      LOOP
-        EXECUTE 'ALTER TABLE schedule_missions DROP CONSTRAINT IF EXISTS ' || quote_ident(r.conname);
-      END LOOP;
-    END $$;
+    CREATE INDEX IF NOT EXISTS smt_user_idx
+    ON schedule_mission_templates (username);
+  `);
+
+  // ── 미션 완료 기록 (날짜별) ──
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS schedule_mission_completions (
+      id SERIAL PRIMARY KEY,
+      username VARCHAR(64) NOT NULL REFERENCES users(username) ON DELETE CASCADE,
+      template_id INTEGER NOT NULL REFERENCES schedule_mission_templates(id) ON DELETE CASCADE,
+      mission_date DATE NOT NULL,
+      completed BOOLEAN NOT NULL DEFAULT FALSE,
+      UNIQUE(username, template_id, mission_date)
+    );
   `);
   await pool.query(`
-    CREATE INDEX IF NOT EXISTS sm_user_date_idx
-    ON schedule_missions (username, mission_date);
+    CREATE INDEX IF NOT EXISTS smc_user_date_idx
+    ON schedule_mission_completions (username, mission_date);
   `);
 
   scheduleTablesInitialized = true;
