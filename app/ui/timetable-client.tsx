@@ -33,6 +33,7 @@ type Mission = {
   completed: boolean;
   rewardMin: number;
   sortOrder: number;
+  quantity: number;
 };
 import { requestApi } from "../../lib/http-client";
 
@@ -627,6 +628,7 @@ export default function TimetableClient() {
 
   const toggleMission = async (id: number, completed: boolean) => {
     const m = missions.find(m2 => m2.id === id);
+    const qty = m?.quantity ?? 1;
     setMissions(prev => prev.map(m2 => m2.id === id ? { ...m2, completed } : m2));
     if (m) {
       const delta = completed ? m.rewardMin : -m.rewardMin;
@@ -636,7 +638,17 @@ export default function TimetableClient() {
     await requestApi("/api/schedule/missions", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, date: achieveDate, completed }),
+      body: JSON.stringify({ id, date: achieveDate, completed, quantity: qty }),
+    });
+  };
+
+  const updateMissionQty = async (id: number, quantity: number) => {
+    setMissions(prev => prev.map(m => m.id === id ? { ...m, quantity } : m));
+    const m = missions.find(m2 => m2.id === id);
+    await requestApi("/api/schedule/missions", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, date: achieveDate, completed: m?.completed ?? true, quantity }),
     });
   };
 
@@ -951,6 +963,21 @@ export default function TimetableClient() {
                             <span className={`sched-mission-reward${m.rewardMin < 0 ? " neg" : ""}`}>
                               {m.rewardMin >= 0 ? "🎁 +" : "⚠️ "}{m.rewardMin}분
                             </span>
+                            {m.completed && (
+                              <div className="sched-mission-qty">
+                                <button
+                                  className="sched-qty-btn"
+                                  onClick={() => updateMissionQty(m.id, Math.max(1, m.quantity - 1))}
+                                  aria-label="수량 감소"
+                                >−</button>
+                                <span className="sched-qty-value">{m.quantity}</span>
+                                <button
+                                  className="sched-qty-btn"
+                                  onClick={() => updateMissionQty(m.id, Math.min(9999, m.quantity + 1))}
+                                  aria-label="수량 증가"
+                                >+</button>
+                              </div>
+                            )}
                             {m.completed && <span className="sched-achieve-badge">✓</span>}
                           </div>
                         </li>

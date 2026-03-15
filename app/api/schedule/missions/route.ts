@@ -9,6 +9,7 @@ type TemplateRow = {
   reward_min: number;
   sort_order: number;
   completed: boolean;
+  quantity: number;
 };
 
 function rowToMission(r: TemplateRow) {
@@ -18,6 +19,7 @@ function rowToMission(r: TemplateRow) {
     rewardMin: r.reward_min,
     sortOrder: r.sort_order,
     completed: r.completed ?? false,
+    quantity: r.quantity ?? 1,
   };
 }
 
@@ -40,7 +42,8 @@ export async function GET(req: NextRequest) {
     // 날짜별: 템플릿 + 해당 날짜 완료 여부 LEFT JOIN
     const { rows } = await pool.query<TemplateRow>(
       `SELECT t.id, t.title, t.reward_min, t.sort_order,
-              COALESCE(c.completed, false) AS completed
+              COALESCE(c.completed, false) AS completed,
+              COALESCE(c.quantity, 1) AS quantity
        FROM schedule_mission_templates t
        LEFT JOIN schedule_mission_completions c
          ON c.template_id = t.id AND c.username = $1 AND c.mission_date = $2::date
@@ -116,7 +119,7 @@ export async function PUT(req: NextRequest) {
   const username = await readSession();
   if (!username) return apiError({ status: 401, code: "UNAUTHORIZED", message: "로그인이 필요합니다." });
 
-  let body: { id?: unknown; title?: unknown; completed?: unknown; rewardMin?: unknown; date?: unknown };
+  let body: { id?: unknown; title?: unknown; completed?: unknown; rewardMin?: unknown; date?: unknown; quantity?: unknown };
   try { body = await req.json(); }
   catch { return apiError({ status: 400, code: "BAD_REQUEST", message: "요청 파싱 오류입니다." }); }
 
@@ -142,14 +145,15 @@ export async function PUT(req: NextRequest) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date))
       return apiError({ status: 400, code: "BAD_REQUEST", message: "날짜 형식이 올바르지 않습니다." });
     const completed = body.completed === true;
+    const quantity = Math.max(1, Math.min(9999, Number(body.quantity) || 1));
     await pool.query(
-      `INSERT INTO schedule_mission_completions (username, template_id, mission_date, completed)
-       VALUES ($1, $2, $3::date, $4)
+      `INSERT INTO schedule_mission_completions (username, template_id, mission_date, completed, quantity)
+       VALUES ($1, $2, $3::date, $4, $5)
        ON CONFLICT (username, template_id, mission_date)
-       DO UPDATE SET completed = EXCLUDED.completed`,
-      [username, id, date, completed],
+       DO UPDATE SET completed = EXCLUDED.completed, quantity = EXCLUDED.quantity`,
+      [username, id, date, completed, quantity],
     );
-    return apiOk({ mission: { id, title: cur.title, rewardMin: cur.reward_min, sortOrder: cur.sort_order, completed } });
+    return apiOk({ mission: { id, title: cur.title, rewardMin: cur.reward_min, sortOrder: cur.sort_order, completed, quantity } });
   } else {
     // Body B: 템플릿 수정
     const title     = body.title !== undefined ? String(body.title).trim().slice(0, 200) || cur.title : cur.title;

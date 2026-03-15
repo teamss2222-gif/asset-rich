@@ -332,8 +332,14 @@ export async function ensureScheduleTables() {
       template_id INTEGER NOT NULL REFERENCES schedule_mission_templates(id) ON DELETE CASCADE,
       mission_date DATE NOT NULL,
       completed BOOLEAN NOT NULL DEFAULT FALSE,
+      quantity INTEGER NOT NULL DEFAULT 1,
       UNIQUE(username, template_id, mission_date)
     );
+  `);
+  // 기존 테이블에 quantity 컬럼 추가 (없는 경우)
+  await pool.query(`
+    ALTER TABLE schedule_mission_completions
+    ADD COLUMN IF NOT EXISTS quantity INTEGER NOT NULL DEFAULT 1;
   `);
   await pool.query(`
     CREATE INDEX IF NOT EXISTS smc_user_date_idx
