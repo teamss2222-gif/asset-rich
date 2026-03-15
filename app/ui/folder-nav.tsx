@@ -9,6 +9,8 @@ const folders = [
   { href: "/dashboard/schedule", label: "시간표",      icon: "🗓️", openIcon: "📂", color: "teal"   },
   { href: "/dashboard/issues",   label: "실시간 이슈", icon: "🔥", openIcon: "📂", color: "red"    },
   { href: "/dashboard/game",     label: "게임",        icon: "🎮", openIcon: "📂", color: "purple" },
+  { href: "/dashboard/habit",     label: "습관 트래커", icon: "🌿", openIcon: "📂", color: "green"  },
+  { href: "/dashboard/pomodoro",  label: "뽀모도로",    icon: "⏱️", openIcon: "📂", color: "orange" },
   { href: "/dashboard/setting",  label: "설정",        icon: "⚙️", openIcon: "📂", color: "gray"   },
 ];
 

@@ -469,6 +469,7 @@ body.bg-loggedin {
 .folder-purple .folder-icon-lg { background: linear-gradient(145deg, #c98eff 0%, #7c3aed 100%); }
 .folder-teal   .folder-icon-lg { background: linear-gradient(145deg, #5ee7d0 0%, #0d9488 100%); }
 .folder-gray   .folder-icon-lg { background: linear-gradient(145deg, #aeaeb2 0%, #48484a 100%); }
+.folder-orange .folder-icon-lg { background: linear-gradient(145deg, #ffb340 0%, #c93d00 100%); }
 
 .folder-amber:hover  { box-shadow: 0 10px 36px rgba(255,162,0,0.22),  var(--shadow); }
 .folder-green:hover  { box-shadow: 0 10px 36px rgba(48,209,88,0.18),   var(--shadow); }
@@ -477,6 +478,7 @@ body.bg-loggedin {
 .folder-purple:hover { box-shadow: 0 10px 36px rgba(192,132,252,0.20), var(--shadow); }
 .folder-teal:hover   { box-shadow: 0 10px 36px rgba(94,234,212,0.18),  var(--shadow); }
 .folder-gray:hover   { box-shadow: 0 10px 36px rgba(174,174,178,0.16), var(--shadow); }
+.folder-orange:hover { box-shadow: 0 10px 36px rgba(255,149,0,0.22),   var(--shadow); }
 
 /* ══════════════════════════
    DOMAIN PAGE
@@ -1184,6 +1186,8 @@ body.bg-loggedin {
 .fnav-tab-purple.active { border-top: 2px solid #c98eff; }
 .fnav-tab-teal.active   { border-top: 2px solid #5ee7d0; }
 .fnav-tab-gray.active   { border-top: 2px solid #aeaeb2; }
+.fnav-tab-green.active  { border-top: 2px solid #30d158; }
+.fnav-tab-orange.active { border-top: 2px solid #ff9500; }
 .fnav-tab-icon  { font-size: 0.88rem; }
 .fnav-tab-label { font-size: 0.8rem; }
 .fnav-content {
@@ -2358,3 +2362,245 @@ body.bg-loggedin {
   .sched-nav-title { display: none; }
 }
 
+/* ══════════════════════════════════════════
+   HABIT TRACKER
+   ══════════════════════════════════════════ */
+.habit-page { display: flex; flex-direction: column; gap: 1.25rem; max-width: 700px; margin: 0 auto; }
+.habit-header { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem; }
+.habit-title  { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.04em; color: var(--text-1); }
+.habit-subtitle { font-size: 0.8rem; color: var(--text-2); margin-top: 0.2rem; }
+.habit-add-btn {
+  padding: 0.5rem 1.1rem; font-size: 0.85rem; font-weight: 600;
+  background: linear-gradient(135deg, #30d158, #1e8a38);
+  color: #fff; border: none; border-radius: var(--r-sm); cursor: pointer;
+  transition: opacity var(--t) var(--ease);
+  white-space: nowrap;
+}
+.habit-add-btn:hover { opacity: 0.85; }
+
+/* 달성률 바 */
+.habit-progress-bar-wrap { display: flex; flex-direction: column; gap: 0.4rem; }
+.habit-progress-label { display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-2); }
+.habit-progress-pct { font-weight: 600; color: var(--text-1); }
+.habit-progress-track { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.habit-progress-fill  { height: 100%; background: linear-gradient(90deg, #30d158, #5de67e); border-radius: 3px; transition: width 0.4s ease; }
+
+/* 빈 상태 */
+.habit-empty { text-align: center; padding: 3rem 1rem; color: var(--text-2); display: flex; flex-direction: column; align-items: center; gap: 0.5rem; }
+
+/* 습관 카드 */
+.habit-list { display: flex; flex-direction: column; gap: 0.65rem; }
+.habit-card {
+  display: flex; align-items: center; gap: 0.9rem;
+  padding: 0.85rem 1rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  transition: background var(--t) var(--ease), border-color var(--t) var(--ease);
+}
+.habit-card.done { background: rgba(48,209,88,0.06); border-color: rgba(48,209,88,0.2); }
+
+.habit-check {
+  flex-shrink: 0; width: 28px; height: 28px; border-radius: 50%;
+  border: 2px solid var(--border-hover); display: flex; align-items: center; justify-content: center;
+  cursor: pointer; background: transparent; transition: background var(--t) var(--ease), border-color var(--t) var(--ease);
+}
+.habit-check:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.habit-icon {
+  flex-shrink: 0; width: 36px; height: 36px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center; font-size: 1.1rem;
+}
+
+.habit-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.4rem; }
+.habit-name-row { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.habit-name { font-size: 0.92rem; font-weight: 600; color: var(--text-1); letter-spacing: -0.02em; }
+.habit-streak {
+  font-size: 0.72rem; font-weight: 600; color: #ff9500;
+  background: rgba(255,149,0,0.12); padding: 2px 7px; border-radius: 20px;
+}
+.habit-card.done .habit-name { text-decoration: line-through; opacity: 0.6; }
+
+/* 주간 그리드 */
+.habit-week-grid { display: flex; gap: 5px; }
+.habit-week-cell { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.habit-week-day { font-size: 0.6rem; color: var(--text-3); }
+.habit-week-dot {
+  width: 14px; height: 14px; border-radius: 4px;
+  background: var(--border);
+  transition: background var(--t) var(--ease);
+}
+.habit-week-cell.done .habit-week-dot { background: #30d158; }
+
+/* 편집·삭제 액션 */
+.habit-actions { display: flex; gap: 0.3rem; flex-shrink: 0; }
+.habit-action-btn {
+  width: 30px; height: 30px; border-radius: var(--r-sm);
+  border: 1px solid transparent; background: transparent; cursor: pointer; font-size: 0.85rem;
+  transition: background var(--t) var(--ease);
+  display: flex; align-items: center; justify-content: center;
+}
+.habit-action-btn:hover { background: var(--border); }
+.habit-action-btn.danger:hover { background: rgba(255,69,58,0.12); }
+.habit-action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* 모달 */
+.habit-modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+  display: flex; align-items: center; justify-content: center; z-index: 200;
+  padding: 1rem;
+}
+.habit-modal {
+  background: var(--bg-card); border: 1px solid var(--border-hover); border-radius: var(--r);
+  padding: 1.5rem; width: 100%; max-width: 380px; display: flex; flex-direction: column; gap: 0.9rem;
+}
+.habit-modal-title { font-size: 1.05rem; font-weight: 700; letter-spacing: -0.03em; color: var(--text-1); }
+.habit-modal-label { font-size: 0.78rem; color: var(--text-2); font-weight: 500; }
+.habit-modal-input {
+  width: 100%; padding: 0.55rem 0.8rem; font-size: 0.9rem;
+  background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--r-sm);
+  color: var(--text-1); outline: none;
+  transition: border-color var(--t) var(--ease);
+}
+.habit-modal-input:focus { border-color: var(--border-hover); }
+.habit-icon-picker { display: flex; flex-wrap: wrap; gap: 6px; }
+.habit-icon-option {
+  width: 34px; height: 34px; border-radius: 8px; font-size: 1.1rem;
+  border: 1.5px solid transparent; background: var(--bg-input); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: border-color var(--t) var(--ease), background var(--t) var(--ease);
+}
+.habit-icon-option:hover   { background: var(--border); }
+.habit-icon-option.selected { border-color: #30d158; background: rgba(48,209,88,0.1); }
+
+.habit-color-picker { display: flex; flex-wrap: wrap; gap: 6px; }
+.habit-color-swatch {
+  width: 26px; height: 26px; border-radius: 50%; border: 2.5px solid transparent;
+  cursor: pointer; transition: transform var(--t) var(--ease), border-color var(--t) var(--ease);
+}
+.habit-color-swatch:hover    { transform: scale(1.15); }
+.habit-color-swatch.selected { border-color: #fff; transform: scale(1.15); }
+
+.habit-modal-preview { font-size: 0.82rem; color: var(--text-2); }
+.habit-modal-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.3rem; }
+.habit-modal-cancel {
+  padding: 0.45rem 1rem; font-size: 0.85rem; border-radius: var(--r-sm);
+  border: 1px solid var(--border-hover); background: transparent; color: var(--text-2); cursor: pointer;
+  transition: background var(--t) var(--ease);
+}
+.habit-modal-cancel:hover { background: var(--border); }
+.habit-modal-save {
+  padding: 0.45rem 1.2rem; font-size: 0.85rem; font-weight: 600; border-radius: var(--r-sm);
+  border: none; background: #30d158; color: #fff; cursor: pointer;
+  transition: opacity var(--t) var(--ease);
+}
+.habit-modal-save:hover    { opacity: 0.85; }
+.habit-modal-save:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ══════════════════════════════════════════
+   POMODORO TIMER
+   ══════════════════════════════════════════ */
+.pomo-page { display: flex; flex-direction: column; align-items: center; gap: 1.5rem; max-width: 480px; margin: 0 auto; padding-bottom: 2rem; }
+
+.pomo-header { width: 100%; display: flex; align-items: center; justify-content: space-between; }
+.pomo-title  { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.04em; color: var(--text-1); }
+.pomo-settings-btn { background: transparent; border: 1px solid var(--border); border-radius: var(--r-sm); padding: 0.35rem 0.6rem; cursor: pointer; font-size: 1rem; transition: background var(--t) var(--ease); }
+.pomo-settings-btn:hover { background: var(--border); }
+
+/* 모드 탭 */
+.pomo-mode-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); width: 100%; }
+.pomo-mode-tab {
+  padding: 0.5rem 1.2rem; font-size: 0.85rem; font-weight: 500;
+  background: transparent; border: none; border-bottom: 2px solid transparent;
+  cursor: pointer; color: var(--text-2); letter-spacing: -0.01em;
+  transition: color var(--t) var(--ease), border-color var(--t) var(--ease);
+  margin-bottom: -1px;
+}
+.pomo-mode-tab:hover  { color: var(--text-1); }
+.pomo-mode-tab.active { font-weight: 700; }
+
+/* 원형 타이머 */
+.pomo-timer-wrap {
+  position: relative; width: 220px; height: 220px;
+  display: flex; align-items: center; justify-content: center;
+}
+.pomo-ring { position: absolute; top: 0; left: 0; transform: rotate(-90deg); }
+.pomo-ring-bg   { fill: none; stroke: var(--border); stroke-width: 8; }
+.pomo-ring-fill {
+  fill: none; stroke-width: 8;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1s linear;
+}
+.pomo-time-display {
+  position: absolute; display: flex; flex-direction: column; align-items: center; gap: 0.2rem;
+}
+.pomo-time-number { font-size: 2.4rem; font-weight: 700; letter-spacing: -0.04em; font-variant-numeric: tabular-nums; color: var(--text-1); }
+.pomo-time-mode   { font-size: 0.78rem; color: var(--text-2); letter-spacing: 0.02em; }
+
+/* 라벨 입력 */
+.pomo-label-wrap { width: 100%; }
+.pomo-label-input {
+  width: 100%; padding: 0.55rem 0.85rem; font-size: 0.85rem;
+  background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--r-sm);
+  color: var(--text-1); outline: none; text-align: center;
+  transition: border-color var(--t) var(--ease);
+}
+.pomo-label-input:focus { border-color: var(--border-hover); }
+
+/* 컨트롤 */
+.pomo-controls { display: flex; align-items: center; gap: 0.9rem; }
+.pomo-reset-btn {
+  width: 42px; height: 42px; border-radius: 50%; font-size: 1.2rem;
+  border: 1.5px solid var(--border-hover); background: transparent; cursor: pointer; color: var(--text-2);
+  transition: background var(--t) var(--ease), color var(--t) var(--ease);
+  display: flex; align-items: center; justify-content: center;
+}
+.pomo-reset-btn:hover { background: var(--border); color: var(--text-1); }
+.pomo-start-btn {
+  padding: 0.65rem 2.2rem; font-size: 0.95rem; font-weight: 700;
+  border: none; border-radius: 999px;
+  color: #fff; cursor: pointer; letter-spacing: -0.01em;
+  transition: opacity var(--t) var(--ease), transform var(--t) var(--ease);
+}
+.pomo-start-btn:hover { opacity: 0.85; transform: scale(1.03); }
+
+/* 오늘 통계 */
+.pomo-stats-row { display: flex; gap: 0.75rem; width: 100%; }
+.pomo-stat-card {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 0.25rem;
+  padding: 0.9rem 0.5rem;
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r);
+}
+.pomo-stat-num   { font-size: 0.92rem; font-weight: 700; color: var(--text-1); letter-spacing: -0.02em; }
+.pomo-stat-label { font-size: 0.7rem; color: var(--text-2); }
+
+/* 주간 바 차트 */
+.pomo-weekly { width: 100%; }
+.pomo-weekly-title { font-size: 0.82rem; color: var(--text-2); margin-bottom: 0.6rem; font-weight: 500; }
+.pomo-weekly-grid { display: flex; gap: 0.3rem; align-items: flex-end; height: 70px; }
+.pomo-weekly-cell { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.pomo-weekly-bar-wrap { flex: 1; width: 100%; display: flex; align-items: flex-end; }
+.pomo-weekly-bar { width: 100%; border-radius: 4px 4px 0 0; min-height: 4px; transition: height 0.3s ease; }
+.pomo-weekly-day   { font-size: 0.62rem; color: var(--text-3); }
+.pomo-weekly-count { font-size: 0.62rem; color: #ff9500; font-weight: 600; }
+
+/* 설정 모달 */
+.pomo-modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+  display: flex; align-items: center; justify-content: center; z-index: 200;
+  padding: 1rem;
+}
+.pomo-modal {
+  background: var(--bg-card); border: 1px solid var(--border-hover); border-radius: var(--r);
+  padding: 1.5rem; width: 100%; max-width: 320px; display: flex; flex-direction: column; gap: 1rem;
+}
+.pomo-modal-title { font-size: 1.05rem; font-weight: 700; color: var(--text-1); letter-spacing: -0.03em; }
+.pomo-modal-row   { display: flex; align-items: center; justify-content: space-between; }
+.pomo-modal-label { font-size: 0.85rem; color: var(--text-2); }
+.pomo-modal-input {
+  width: 70px; padding: 0.4rem 0.6rem; font-size: 0.9rem; text-align: center;
+  background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--r-sm);
+  color: var(--text-1); outline: none;
+}
+.pomo-modal-input:focus { border-color: var(--border-hover); }
+.pomo-modal-actions { display: flex; justify-content: flex-end; gap: 0.5rem; }

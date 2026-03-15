@@ -35,6 +35,20 @@ const folders = [
     color: "folder-purple",
   },
   {
+    href: "/dashboard/habit",
+    label: "습관 트래커",
+    icon: "🌿",
+    desc: "매일 습관 · 스트릭 · 위클리 그래프",
+    color: "folder-green",
+  },
+  {
+    href: "/dashboard/pomodoro",
+    label: "뽀모도로",
+    icon: "⏱️",
+    desc: "집중 타이머 · 세션 기록 · 통계",
+    color: "folder-orange",
+  },
+  {
     href: "/dashboard/setting",
     label: "설정",
     icon: "⚙️",

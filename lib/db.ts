@@ -32,6 +32,7 @@ let integrationConnectionsTableInitialized = false;
 let backgroundJobsTableInitialized = false;
 let webhookEventsTableInitialized = false;
 let issuesTableInitialized = false;
+let habitTablesInitialized = false;
 
 export async function ensureUsersTable() {
   if (usersTableInitialized) {
@@ -327,4 +328,56 @@ export async function ensureScheduleTables() {
   `);
 
   scheduleTablesInitialized = true;
+}
+
+export async function ensureHabitTables() {
+  if (habitTablesInitialized) return;
+
+  await ensureUsersTable();
+  const pool = getPool();
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS habits (
+      id SERIAL PRIMARY KEY,
+      username VARCHAR(64) NOT NULL REFERENCES users(username) ON DELETE CASCADE,
+      name VARCHAR(100) NOT NULL,
+      icon VARCHAR(10) NOT NULL DEFAULT '✅',
+      color VARCHAR(20) NOT NULL DEFAULT '#30d158',
+      sort_order SMALLINT NOT NULL DEFAULT 0,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS habits_username_idx ON habits (username, sort_order);
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS habit_logs (
+      id SERIAL PRIMARY KEY,
+      username VARCHAR(64) NOT NULL REFERENCES users(username) ON DELETE CASCADE,
+      habit_id INTEGER NOT NULL REFERENCES habits(id) ON DELETE CASCADE,
+      log_date DATE NOT NULL,
+      UNIQUE(username, habit_id, log_date)
+    );
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS hl_user_date_idx ON habit_logs (username, log_date);
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS pomodoro_sessions (
+      id SERIAL PRIMARY KEY,
+      username VARCHAR(64) NOT NULL REFERENCES users(username) ON DELETE CASCADE,
+      session_date DATE NOT NULL,
+      work_minutes SMALLINT NOT NULL DEFAULT 25,
+      completed BOOLEAN NOT NULL DEFAULT FALSE,
+      label VARCHAR(80) NOT NULL DEFAULT '',
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS pomo_user_date_idx ON pomodoro_sessions (username, session_date DESC);
+  `);
+
+  habitTablesInitialized = true;
 }
