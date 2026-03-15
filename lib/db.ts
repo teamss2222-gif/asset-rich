@@ -318,9 +318,23 @@ export async function ensureScheduleTables() {
       completed BOOLEAN NOT NULL DEFAULT FALSE,
       reward_min SMALLINT NOT NULL DEFAULT 0,
       sort_order SMALLINT NOT NULL DEFAULT 0,
-      created_at TIMESTAMP DEFAULT NOW(),
-      CHECK (reward_min >= 0 AND reward_min <= 1440)
+      created_at TIMESTAMP DEFAULT NOW()
     );
+  `);
+  // 기존 reward_min >= 0 제약 제거 (마이너스 보상 허용)
+  await pool.query(`
+    DO $$
+    DECLARE r record;
+    BEGIN
+      FOR r IN
+        SELECT conname FROM pg_constraint
+        WHERE conrelid = 'schedule_missions'::regclass
+          AND contype = 'c'
+          AND pg_get_constraintdef(oid) LIKE '%reward_min%'
+      LOOP
+        EXECUTE 'ALTER TABLE schedule_missions DROP CONSTRAINT IF EXISTS ' || quote_ident(r.conname);
+      END LOOP;
+    END $$;
   `);
   await pool.query(`
     CREATE INDEX IF NOT EXISTS sm_user_date_idx

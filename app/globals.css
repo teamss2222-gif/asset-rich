@@ -1977,6 +1977,57 @@ body.bg-loggedin {
 }
 .sched-mission-total strong { color: var(--accent); font-weight: 700; }
 
+/* ── Mission panel (from nav button) ── */
+.sched-mission-nav-btn {
+  border: 1px solid rgba(255,214,10,0.4);
+  color: #ffd60a;
+}
+.sched-mission-nav-btn:hover { background: rgba(255,214,10,0.1); }
+
+.sched-mission-panel { max-width: 500px; }
+
+.sched-mission-day-tabs {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+  padding: 0.5rem 1rem 0;
+}
+.sched-mission-day-tab {
+  flex: 1;
+  min-width: 2.2rem;
+  padding: 0.3rem 0.4rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-2);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.sched-mission-day-tab:hover { background: rgba(255,255,255,0.06); }
+.sched-mission-day-tab.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+  font-weight: 600;
+}
+
+/* ── Weekly total with reward colors ── */
+.sched-mission-total-week {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--text-2);
+  padding: 0.5rem 0;
+}
+.sched-reward-pos { color: #30d158; font-weight: 700; font-size: 1rem; }
+.sched-reward-neg { color: #ff453a; font-weight: 700; font-size: 1rem; }
+.sched-mission-reset-note { font-size: 0.72rem; color: var(--text-3, #6e6e73); }
+
+/* mission reward negative indicator */
+.sched-mission-reward.neg { color: #ff453a; }
+
 /* ── Scrollable body ── */
 .sched-body {
   flex: 1;

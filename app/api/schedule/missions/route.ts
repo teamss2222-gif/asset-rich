@@ -44,7 +44,26 @@ export async function GET(req: NextRequest) {
     [username, date],
   );
 
-  return apiOk({ missions: rows.map(rowToMission) });
+  // 이번 주(일~토) 완료된 미션의 보상 시간 누적 (주간 리셋 기준: 일요일)
+  const { rows: weekRows } = await pool.query<{ week_total: string }>(
+    `SELECT COALESCE(SUM(reward_min), 0)::text AS week_total
+     FROM schedule_missions
+     WHERE username = $1
+       AND completed = TRUE
+       AND mission_date >= ($2::date - EXTRACT(DOW FROM $2::date)::integer)
+       AND mission_date <= ($2::date - EXTRACT(DOW FROM $2::date)::integer + 6)`,
+    [username, date],
+  );
+  const weekTotal = parseInt(weekRows[0]?.week_total ?? '0', 10);
+
+  // 다음 일요일 날짜 계산
+  const d = new Date(date + 'T00:00:00');
+  const daysUntilSunday = 7 - d.getDay();
+  const nextSunday = new Date(d);
+  nextSunday.setDate(d.getDate() + daysUntilSunday);
+  const nextSundayStr = nextSunday.toLocaleDateString('sv-SE');
+
+  return apiOk({ missions: rows.map(rowToMission), weekTotal, nextSunday: nextSundayStr });
 }
 
 // POST /api/schedule/missions  Body: { date, title, rewardMin }
@@ -63,7 +82,7 @@ export async function POST(req: NextRequest) {
   const title = String(body.title ?? "").trim().slice(0, 200);
   if (!title) return apiError({ status: 400, code: "BAD_REQUEST", message: "미션 제목을 입력하세요." });
 
-  const rewardMin = Math.min(1440, Math.max(0, Number(body.rewardMin) || 0));
+  const rewardMin = Math.min(1440, Math.max(-1440, Number(body.rewardMin) || 0));
 
   await ensureScheduleTables();
   const pool = getPool();
@@ -110,7 +129,7 @@ export async function PUT(req: NextRequest) {
   const cur = own.rows[0];
   const title     = body.title !== undefined ? String(body.title).trim().slice(0, 200) || cur.title : cur.title;
   const completed = body.completed !== undefined ? body.completed === true : cur.completed;
-  const rewardMin = body.rewardMin !== undefined ? Math.min(1440, Math.max(0, Number(body.rewardMin) || 0)) : cur.reward_min;
+  const rewardMin = body.rewardMin !== undefined ? Math.min(1440, Math.max(-1440, Number(body.rewardMin) || 0)) : cur.reward_min;
 
   const { rows } = await pool.query<MissionRow>(
     `UPDATE schedule_missions SET title = $1, completed = $2, reward_min = $3
