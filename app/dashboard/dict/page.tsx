@@ -27,9 +27,6 @@ const TABS: { key: Tab; label: string; emoji: string }[] = [
   { key: "sodam", label: "속담", emoji: "💬" },
 ];
 
-const ALL_GOSA_TAGS = Array.from(new Set(GOSA_DATA.flatMap((g) => g.tags ?? []))).sort();
-const ALL_SODAM_TAGS = Array.from(new Set(SODAM_DATA.flatMap((s) => s.tags ?? []))).sort();
-
 // ── 번역 탭 컴포넌트 ──
 function TranslateTab({ dir }: { dir: "en|ko" | "ko|en" }) {
   const [query, setQuery] = useState("");
@@ -137,57 +134,50 @@ function TranslateTab({ dir }: { dir: "en|ko" | "ko|en" }) {
 // ── 고사성어 탭 ──
 function GosaTab() {
   const [query, setQuery] = useState("");
-  const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<number | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
+  const q = query.trim().toLowerCase();
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return GOSA_DATA.filter((g) => {
-      const matchTag = selectedTag ? g.tags?.includes(selectedTag) : true;
-      if (!q) return matchTag;
-      return matchTag && (
-        g.word.includes(q) ||
-        g.hanja.includes(q) ||
-        g.meaning.includes(q) ||
-        g.english.toLowerCase().includes(q)
-      );
-    });
-  }, [query, selectedTag]);
+    if (!q) return [];
+    return GOSA_DATA.filter((g) =>
+      g.word.includes(q) ||
+      g.hanja.includes(q) ||
+      g.meaning.includes(q) ||
+      g.english.toLowerCase().includes(q)
+    );
+  }, [q]);
 
   return (
     <div>
       <div className="dict-search-bar">
         <input
+          ref={inputRef}
           className="dict-search-input"
           placeholder="고사성어, 한자, 뜻으로 검색…"
           value={query}
+          autoFocus
           onChange={(e) => { setQuery(e.target.value); setExpanded(null); }}
         />
-        {query && <button className="dict-clear-btn" onClick={() => { setQuery(""); setExpanded(null); }}>✕</button>}
+        {query && <button className="dict-clear-btn" onClick={() => { setQuery(""); setExpanded(null); inputRef.current?.focus(); }}>✕</button>}
       </div>
 
-      <div className="dict-tag-strip">
-        <button
-          className={`dict-tag ${!selectedTag ? "active" : ""}`}
-          onClick={() => setSelectedTag(null)}
-        >전체</button>
-        {ALL_GOSA_TAGS.map((t) => (
-          <button
-            key={t}
-            className={`dict-tag ${selectedTag === t ? "active" : ""}`}
-            onClick={() => setSelectedTag(t === selectedTag ? null : t)}
-          >{t}</button>
-        ))}
-      </div>
-
-      <p className="dict-count">{filtered.length}개</p>
-
-      <div className="dict-card-list">
-        {filtered.length === 0 && <div className="dict-empty">검색 결과가 없어요.</div>}
-        {filtered.map((g, i) => (
-          <GosaCard key={g.word} entry={g} isOpen={expanded === i} onToggle={() => setExpanded(expanded === i ? null : i)} />
-        ))}
-      </div>
+      {!q && (
+        <div className="dict-empty" style={{ marginTop: "2.5rem" }}>
+          검색어를 입력하면 결과가 표시됩니다.
+        </div>
+      )}
+      {q && filtered.length === 0 && <div className="dict-empty" style={{ marginTop: "2.5rem" }}>검색 결과가 없어요.</div>}
+      {q && filtered.length > 0 && (
+        <>
+          <p className="dict-count">{filtered.length}개</p>
+          <div className="dict-card-list">
+            {filtered.map((g, i) => (
+              <GosaCard key={g.word} entry={g} isOpen={expanded === i} onToggle={() => setExpanded(expanded === i ? null : i)} />
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -226,56 +216,49 @@ function GosaCard({ entry, isOpen, onToggle }: { entry: GosaEntry; isOpen: boole
 // ── 속담 탭 ──
 function SodamTab() {
   const [query, setQuery] = useState("");
-  const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<number | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
+  const q = query.trim().toLowerCase();
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return SODAM_DATA.filter((s) => {
-      const matchTag = selectedTag ? s.tags?.includes(selectedTag) : true;
-      if (!q) return matchTag;
-      return matchTag && (
-        s.sodam.includes(q) ||
-        s.meaning.includes(q) ||
-        s.english.toLowerCase().includes(q)
-      );
-    });
-  }, [query, selectedTag]);
+    if (!q) return [];
+    return SODAM_DATA.filter((s) =>
+      s.sodam.includes(q) ||
+      s.meaning.includes(q) ||
+      s.english.toLowerCase().includes(q)
+    );
+  }, [q]);
 
   return (
     <div>
       <div className="dict-search-bar">
         <input
+          ref={inputRef}
           className="dict-search-input"
           placeholder="속담, 뜻으로 검색…"
           value={query}
+          autoFocus
           onChange={(e) => { setQuery(e.target.value); setExpanded(null); }}
         />
-        {query && <button className="dict-clear-btn" onClick={() => { setQuery(""); setExpanded(null); }}>✕</button>}
+        {query && <button className="dict-clear-btn" onClick={() => { setQuery(""); setExpanded(null); inputRef.current?.focus(); }}>✕</button>}
       </div>
 
-      <div className="dict-tag-strip">
-        <button
-          className={`dict-tag ${!selectedTag ? "active" : ""}`}
-          onClick={() => setSelectedTag(null)}
-        >전체</button>
-        {ALL_SODAM_TAGS.map((t) => (
-          <button
-            key={t}
-            className={`dict-tag ${selectedTag === t ? "active" : ""}`}
-            onClick={() => setSelectedTag(t === selectedTag ? null : t)}
-          >{t}</button>
-        ))}
-      </div>
-
-      <p className="dict-count">{filtered.length}개</p>
-
-      <div className="dict-card-list">
-        {filtered.length === 0 && <div className="dict-empty">검색 결과가 없어요.</div>}
-        {filtered.map((s, i) => (
-          <SodamCard key={s.sodam} entry={s} isOpen={expanded === i} onToggle={() => setExpanded(expanded === i ? null : i)} />
-        ))}
-      </div>
+      {!q && (
+        <div className="dict-empty" style={{ marginTop: "2.5rem" }}>
+          검색어를 입력하면 결과가 표시됩니다.
+        </div>
+      )}
+      {q && filtered.length === 0 && <div className="dict-empty" style={{ marginTop: "2.5rem" }}>검색 결과가 없어요.</div>}
+      {q && filtered.length > 0 && (
+        <>
+          <p className="dict-count">{filtered.length}개</p>
+          <div className="dict-card-list">
+            {filtered.map((s, i) => (
+              <SodamCard key={s.sodam} entry={s} isOpen={expanded === i} onToggle={() => setExpanded(expanded === i ? null : i)} />
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }
