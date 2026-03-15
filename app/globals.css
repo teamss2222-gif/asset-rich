@@ -1287,6 +1287,26 @@ body.bg-loggedin {
   .card-detail-meta { justify-content: center; }
 }
 
+/* 카드 직접 입력 폼 */
+.card-manual-form {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-lg);
+  padding: 1.25rem 1.5rem; margin-bottom: 1.25rem;
+  box-shadow: var(--shadow-sm);
+}
+.card-manual-title {
+  font-size: 1rem; font-weight: 700; color: var(--text-1);
+  margin: 0 0 1rem; letter-spacing: -0.03em;
+}
+.card-manual-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem 1rem;
+}
+.card-manual-field { display: flex; flex-direction: column; gap: 0.3rem; }
+.card-manual-field label { font-size: 0.78rem; color: var(--text-2); font-weight: 500; }
+.card-manual-full { grid-column: 1 / -1; }
+@media (max-width: 640px) {
+  .card-manual-grid { grid-template-columns: 1fr; }
+}
+
 /* ══════════════════════════
    ISSUES — 실시간 이슈
    ══════════════════════════ */

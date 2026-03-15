@@ -126,90 +126,174 @@ export async function fetchCardIdsFromSite(options?: {
 export async function crawlCard(cardId: number): Promise<CardData | null> {
   const url = `https://www.card-gorilla.com/card/detail/${cardId}`;
 
+  const HEADERS = {
+    "User-Agent":
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+    Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "Accept-Language": "ko-KR,ko;q=0.9,en;q=0.8",
+    "Accept-Encoding": "gzip, deflate, br",
+    Referer: "https://www.card-gorilla.com/",
+    "Cache-Control": "no-cache",
+    Pragma: "no-cache",
+  };
+
   try {
-    const res = await fetch(url, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        Accept: "text/html,application/xhtml+xml",
-        "Accept-Language": "ko-KR,ko;q=0.9",
-      },
-    });
-
+    const res = await fetch(url, { headers: HEADERS });
     if (!res.ok) return null;
-
     const html = await res.text();
+    // 최소 1KB 미만이면 차단된 것으로 판단
+    if (html.length < 1000) return null;
     return parseCardDetail(cardId, html);
   } catch {
     return null;
   }
 }
 
-/* ── HTML 파싱 ── */
+/* ── HTML 파싱 (다중 전략) ── */
 function parseCardDetail(cardId: number, html: string): CardData | null {
   const $ = cheerio.load(html);
 
-  const nameEl = $(".card_top_detail .card_name");
-  const name = nameEl.length > 0
-    ? nameEl.first().text().trim()
-    : $("h1").first().text().trim() || $(".tit").first().text().trim();
+  // ── 전략 1: Nuxt 3 SSR payload (__NUXT_DATA__ 또는 window.__NUXT__) ──
+  let nuxtCard: Partial<CardData> | null = null;
+  try {
+    // Nuxt 3: <script id="__NUXT_DATA__" type="application/json">
+    const nuxtEl = $("script#__NUXT_DATA__").html();
+    if (nuxtEl) {
+      const arr: unknown[] = JSON.parse(nuxtEl);
+      // 배열에서 카드명 패턴 탐색 (한글 포함, 길이 2~50)
+      const cardName = arr.find(
+        (v): v is string =>
+          typeof v === "string" &&
+          /[가-힣]/.test(v) &&
+          v.length >= 2 &&
+          v.length <= 60 &&
+          !v.startsWith("http"),
+      );
+      if (cardName) nuxtCard = { name: cardName };
+    }
 
-  if (!name) return null;
+    // Nuxt 2: window.__NUXT__={...}
+    if (!nuxtCard) {
+      const m = html.match(/window\.__NUXT__\s*=\s*(\{.+?\})\s*;?\s*<\/script>/s);
+      if (m) {
+        const state = JSON.parse(m[1]);
+        const findStr = (o: unknown): string | null => {
+          if (typeof o === "string" && /[가-힣카드]/.test(o) && o.length > 2 && o.length < 60) return o;
+          if (typeof o === "object" && o) {
+            for (const v of Object.values(o as Record<string, unknown>)) {
+              const r = findStr(v);
+              if (r) return r;
+            }
+          }
+          return null;
+        };
+        const n = findStr(state);
+        if (n) nuxtCard = { name: n };
+      }
+    }
+  } catch { /* ignore */ }
 
-  const company = $(".card_top_detail .card_corp").text().trim()
-    || $(".corp_name").text().trim()
-    || "";
+  // ── 전략 2: JSON-LD ──
+  let jsonLdName = "";
+  let jsonLdDesc = "";
+  $('script[type="application/ld+json"]').each((_, el) => {
+    try {
+      const d = JSON.parse($(el).html() ?? "");
+      if (d.name && typeof d.name === "string") jsonLdName = d.name;
+      if (d.description) jsonLdDesc = String(d.description);
+    } catch { /* ignore */ }
+  });
 
-  const imgEl = $(".card_top_detail img, .card_img img").first();
-  const image_url = imgEl.attr("src") || "";
+  // ── 전략 3: OG meta ──
+  const ogTitle = $('meta[property="og:title"]').attr("content") ?? "";
+  const ogDesc  = $('meta[property="og:description"]').attr("content") ?? "";
+  const ogImage = $('meta[property="og:image"]').attr("content") ?? "";
 
+  // ── 전략 4: CSS 선택자 (카드고릴라 여러 버전) ──
+  const selectorName =
+    $(".card_top_detail .card_name").first().text().trim() ||
+    $(".card_tit, .tit.card_name, .card-name, .card_nm").first().text().trim() ||
+    $("h1.tit, h2.tit, h1.title, h2.title").first().text().trim() ||
+    $("[class*='card_name'], [class*='cardName'], [class*='card-name']").first().text().trim();
+
+  const selectorCompany =
+    $(".card_top_detail .card_corp").text().trim() ||
+    $(".corp_info .name, .corp_name, .card_corp, .issuer, [class*='corp']").first().text().trim();
+
+  // ── 이름 최종 결정 ──
+  let name =
+    nuxtCard?.name ||
+    jsonLdName ||
+    // OG title에서 "| 카드고릴라" 제거
+    (ogTitle.replace(/[ㄱ-힣]*카드고릴라.*$/i, "").replace(/\s*[-|]\s*$/, "").trim()) ||
+    selectorName ||
+    $("title").first().text().replace(/[ㄱ-힣]*카드고릴라.*/i, "").replace(/\s*[-|·]\s*$/, "").trim();
+
+  if (!name || name.length < 2) return null;
+  // OG title에 회사명 포함된 경우 분리 (예: "[신한카드] The Dream Cashback")
+  let company = selectorCompany;
+  if (!company) {
+    const m = name.match(/^\[(.+?)\]/);
+    if (m) { company = m[1]; name = name.replace(/^\[.+?\]\s*/, "").trim(); }
+  }
+
+  // ── 이미지 ──
+  const imgSel =
+    $(".card_top_detail img, .card_img img, .card-img img, [class*='card_img'] img, [class*='cardImg'] img").first().attr("src") ?? "";
+  const image_url = imgSel || ogImage;
+
+  // ── 연회비 / 전월실적 / 브랜드 ──
   let annual_fee = "";
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  $(".bnf2 li, .card_info li").each((_: number, el: any) => {
-    const txt = $(el).text();
-    if (txt.includes("연회비")) {
-      annual_fee = txt.replace("연회비", "").trim();
-    }
-  });
-
   let min_spending = "";
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  $(".bnf2 li, .card_info li").each((_: number, el: any) => {
-    const txt = $(el).text();
-    if (txt.includes("전월실적")) {
-      min_spending = txt.replace("전월실적", "").trim();
-    }
-  });
-
   let brand = "";
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  $(".bnf2 li, .card_info li").each((_: number, el: any) => {
-    const txt = $(el).text();
-    if (txt.includes("브랜드")) {
-      brand = txt.replace("브랜드", "").trim();
-    }
-  });
 
+  const infoTexts: string[] = [];
+  $(".bnf2 li, .card_info li, .card-info li, .card_spec li, [class*='card_info'] li, [class*='cardInfo'] li").each((_, el) => {
+    infoTexts.push($(el).text().trim());
+  });
+  if (infoTexts.length === 0 && ogDesc) infoTexts.push(ogDesc);
+  if (infoTexts.length === 0 && jsonLdDesc) infoTexts.push(jsonLdDesc);
+
+  for (const txt of infoTexts) {
+    if (!annual_fee && (txt.includes("연회비") || txt.includes("연 회비")))
+      annual_fee = txt.replace(/연\s?회비\s?[:：]?\s?/g, "").trim();
+    if (!min_spending && txt.includes("전월실적"))
+      min_spending = txt.replace(/전월실적\s?[:：]?\s?/g, "").trim();
+    if (!brand && txt.includes("브랜드"))
+      brand = txt.replace(/브랜드\s?[:：]?\s?/g, "").trim();
+  }
+
+  // ── 혜택 ──
   const benefits: CardBenefit[] = [];
+  const seen = new Set<string>();
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  $(".card_top_detail .lst li, .bnf1 li").each((_: number, el: any) => {
-    const cat = $(el).find("b, strong").first().text().trim();
-    const summary = $(el).text().trim();
-    if (summary) {
-      benefits.push({ category: cat || "기타", summary: summary.replace(cat, "").trim() });
+  const addBenefit = (cat: string, summary: string) => {
+    const key = summary.slice(0, 40);
+    if (summary.length > 2 && !seen.has(key)) {
+      seen.add(key);
+      benefits.push({ category: cat || "기타", summary });
     }
+  };
+
+  $(
+    ".card_top_detail .lst li, .bnf1 li, " +
+    ".lst.benefit_lst li, .benefit_area li, #benefitArea li, " +
+    ".benefit_list li, .bnf_list li, " +
+    "[class*='benefit'] li, [class*='bnf'] li",
+  ).each((_, el) => {
+    const cat     = $(el).find("b, strong, .tit, .cat, [class*='tit']").first().text().trim();
+    const detail  = $(el).find("p, .txt, .desc, .content, [class*='desc']").first().text().trim();
+    const summary = (detail || $(el).text().trim()).replace(cat, "").trim();
+    addBenefit(cat, summary);
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  $(".lst.benefit_lst li, .benefit_area li, #benefitArea li").each((_: number, el: any) => {
-    const cat = $(el).find("b, strong, .tit").first().text().trim();
-    const detail = $(el).find("p, .txt, .desc").first().text().trim();
-    const summary = detail || $(el).text().trim();
-    if (summary && !benefits.some((b) => b.summary === summary.replace(cat, "").trim())) {
-      benefits.push({ category: cat || "기타", summary: summary.replace(cat, "").trim() });
-    }
-  });
+  // OG description으로 기본 혜택 추가 (아무것도 없을 때)
+  if (benefits.length === 0 && ogDesc) {
+    ogDesc.split(/[.。\n]/).forEach(s => {
+      const t = s.trim();
+      if (t.length > 5) addBenefit("혜택", t);
+    });
+  }
 
   return {
     gorilla_id: cardId,
