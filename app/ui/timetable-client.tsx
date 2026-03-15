@@ -200,7 +200,6 @@ function ColorSwatch({ color, selected, onClick }: {
 export default function TimetableClient() {
   const [weekStart, setWeekStart] = useState<Date>(() => getWeekStart(new Date()));
   const [events, setEvents]       = useState<ScheduleEvent[]>([]);
-  const [summaries, setSummaries] = useState<Record<string, string>>({});
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState("");
   const [saving, setSaving]       = useState(false);
@@ -209,10 +208,13 @@ export default function TimetableClient() {
     title: "", description: "", color: DEFAULT_COLOR,
     repeatType: "none", repeatUntil: "", isRepeated: false, scope: "single",
   });
-  const [summaryDirty, setSummaryDirty] = useState<Record<string, boolean>>({});
   const [nowMinutes, setNowMinutes] = useState(getNowMinutes);
   const [undoMsg, setUndoMsg]  = useState("");
   const todayStr = getTodayStr();
+
+  // ── Auto summary per day ───────────────────────────────────────────────
+  const [dayAutoSummaries, setDayAutoSummaries] = useState<Record<string, { doneEvents: string[]; totalEvents: number }>>({});
+  const [weekMissionTotal, setWeekMissionTotal] = useState(0);
 
   // ── Achievement popup state ───────────────────────────────────────────────
   const [achieveDate, setAchieveDate]         = useState<string | null>(null);
@@ -406,15 +408,22 @@ export default function TimetableClient() {
   const loadWeek = useCallback(async (ws: Date) => {
     setLoading(true);
     setError("");
-    const res = await requestApi<{ events: ScheduleEvent[]; summaries: Record<string, string> }>(
-      `/api/schedule?weekStart=${formatDate(ws)}`,
-    );
+    const wsStr = formatDate(ws);
+    const [res, sumRes] = await Promise.all([
+      requestApi<{ events: ScheduleEvent[] }>(`/api/schedule?weekStart=${wsStr}`),
+      requestApi<{ days: Record<string, { doneEvents: string[]; totalEvents: number }>; weekMissionTotal: number }>(
+        `/api/schedule/week-summary?weekStart=${wsStr}`,
+      ),
+    ]);
     setLoading(false);
     if (res.ok && res.data) {
       setEventsTracked(res.data.events ?? []);
-      setSummaries(res.data.summaries ?? {});
     } else {
       setError(res.message || "데이터를 불러오지 못했습니다.");
+    }
+    if (sumRes.ok && sumRes.data) {
+      setDayAutoSummaries(sumRes.data.days ?? {});
+      setWeekMissionTotal(sumRes.data.weekMissionTotal ?? 0);
     }
   }, []);
 
@@ -446,23 +455,6 @@ export default function TimetableClient() {
     const d = new Date(ws); d.setDate(d.getDate() + 7); return d;
   });
   const goToday  = () => setWeekStart(getWeekStart(new Date()));
-
-  // ── Summary ──────────────────────────────────────────────────────────────
-
-  const handleSummaryChange = (date: string, value: string) => {
-    setSummaries(prev => ({ ...prev, [date]: value }));
-    setSummaryDirty(prev => ({ ...prev, [date]: true }));
-  };
-
-  const saveSummary = async (date: string) => {
-    if (!summaryDirty[date]) return;
-    setSummaryDirty(prev => ({ ...prev, [date]: false }));
-    await requestApi("/api/schedule/summary", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ date, summary: summaries[date] ?? "" }),
-    });
-  };
 
   // ── Grid click → create ──────────────────────────────────────────────────
 
@@ -601,7 +593,17 @@ export default function TimetableClient() {
 
   const toggleCompletion = async (eventId: number, completed: boolean) => {
     if (!achieveDate) return;
-    setCompletions(prev => prev.map(c => c.id === eventId ? { ...c, completed } : c));
+    const updated = completions.map(c => c.id === eventId ? { ...c, completed } : c);
+    setCompletions(updated);
+    // 데이 자동 요약 업데이트
+    const nonGray = updated.filter(c => c.color !== DEFAULT_COLOR);
+    setDayAutoSummaries(prev => ({
+      ...prev,
+      [achieveDate]: {
+        doneEvents: nonGray.filter(c => c.completed).map(c => c.title),
+        totalEvents: nonGray.length,
+      },
+    }));
     await requestApi("/api/schedule/achievements", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -626,7 +628,11 @@ export default function TimetableClient() {
   const toggleMission = async (id: number, completed: boolean) => {
     const m = missions.find(m2 => m2.id === id);
     setMissions(prev => prev.map(m2 => m2.id === id ? { ...m2, completed } : m2));
-    if (m) setWeekTotalReward(prev => prev + (completed ? m.rewardMin : -m.rewardMin));
+    if (m) {
+      const delta = completed ? m.rewardMin : -m.rewardMin;
+      setWeekTotalReward(prev => prev + delta);
+      setWeekMissionTotal(prev => prev + delta);
+    }
     await requestApi("/api/schedule/missions", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -725,14 +731,30 @@ export default function TimetableClient() {
               >
                 📊 성과
               </button>
-              <textarea
-                className="sched-summary-input"
-                placeholder="이슈 & 메모 기록..."
-                value={summaries[date] ?? ""}
-                onChange={e => handleSummaryChange(date, e.target.value)}
-                onBlur={() => saveSummary(date)}
-                maxLength={500}
-              />
+              {/* 자동 완료 요약 */}
+              {(() => {
+                const ds = dayAutoSummaries[date];
+                const hasEvents = ds && ds.totalEvents > 0;
+                const hasMission = weekMissionTotal !== 0;
+                if (!hasEvents && !hasMission) return null;
+                return (
+                  <div className="sched-auto-summary">
+                    {hasEvents && ds.doneEvents.map((t, i) => (
+                      <div key={i} className="sched-auto-done">✓ {t}</div>
+                    ))}
+                    {hasEvents && ds.totalEvents - ds.doneEvents.length > 0 && (
+                      <div className="sched-auto-undone">
+                        미완 {ds.totalEvents - ds.doneEvents.length}개
+                      </div>
+                    )}
+                    {hasMission && (
+                      <div className={`sched-auto-mission${weekMissionTotal < 0 ? " neg" : ""}`}>
+                        🏆{weekMissionTotal >= 0 ? "+" : ""}{weekMissionTotal}분
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           );
         })}
