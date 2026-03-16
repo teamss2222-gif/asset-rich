@@ -626,9 +626,52 @@ body.bg-loggedin {
 .asset-liability-box strong { display: block; margin-top: 0.25rem; font-size: 1.05rem; font-weight: 700; color: var(--danger); letter-spacing: -0.03em; }
 
 .asset-legend { display: grid; gap: 0.45rem; }
-.asset-legend-item { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; gap: 0.4rem; align-items: center; font-size: 0.72rem; color: var(--text-1); }
+.asset-legend-item { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto auto; gap: 0.4rem; align-items: center; font-size: 0.72rem; color: var(--text-1); }
 .asset-legend-item strong { font-size: 0.72rem; }
 .asset-legend-dot { width: 10px; height: 10px; border-radius: 3px; }
+.asset-legend-pct { font-size: 0.68rem; color: var(--text-2); min-width: 36px; text-align: right; }
+
+/* 도넛 차트 */
+.donut-wrap { display: flex; justify-content: center; padding: 0.5rem 0; }
+.donut-svg { width: 180px; height: 180px; overflow: visible; }
+
+/* 스파크라인 */
+.asset-sparkline-row { margin-top: 0.25rem; }
+.sparkline-svg { display: block; }
+
+/* 재무 건강 점수 */
+.asset-health-card { transition: border-color 0.3s; }
+.asset-health-score-row { display: flex; align-items: center; gap: 0.6rem; }
+.asset-health-grade { padding: 0.15rem 0.55rem; border-radius: 99px; font-size: 0.72rem; font-weight: 700; }
+.asset-health-detail {
+  display: flex; flex-wrap: wrap; gap: 0.4rem;
+  padding: 0.8rem 1rem; margin-bottom: 0.75rem;
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r);
+}
+.asset-health-badge {
+  padding: 0.25rem 0.65rem; border-radius: 99px;
+  background: rgba(255,255,255,0.06); border: 1px solid var(--border);
+  font-size: 0.72rem; color: var(--text-2);
+}
+
+/* 카테고리 헤더 그룹 */
+.asset-group-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 0.45rem; vertical-align: middle; }
+.asset-group-share { font-size: 0.72rem; color: var(--text-2); padding: 0.15rem 0.45rem; background: rgba(255,255,255,0.06); border-radius: 99px; }
+.asset-collapse-icon { font-size: 1.1rem; color: var(--text-3); transition: transform 0.2s; }
+
+/* 부동산 카드 개선 */
+.realestate-net-stats { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0.4rem 0; font-size: 0.74rem; color: var(--text-2); }
+.realestate-net-stats strong { color: var(--text-1); }
+.realestate-net-bottom { display: flex; align-items: center; justify-content: space-between; margin-top: 0.5rem; }
+.realestate-net-value { font-size: 0.9rem; color: var(--success); }
+.realestate-profit-badge { padding: 0.18rem 0.55rem; border-radius: 99px; font-size: 0.72rem; font-weight: 700; }
+.realestate-profit-badge.up { background: rgba(48,209,88,0.15); color: #30d158; border: 1px solid rgba(48,209,88,0.3); }
+.realestate-profit-badge.down { background: rgba(255,69,58,0.15); color: #ff453a; border: 1px solid rgba(255,69,58,0.3); }
+
+/* 이력 차트 */
+.asset-history-panel { padding: 0.2rem 0; }
+.asset-history-chart { background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 0.6rem; }
+.asset-history-labels { display: flex; justify-content: space-between; margin-top: 0.25rem; font-size: 0.65rem; color: var(--text-3); }
 
 /* ══════════════════════════
    ADDRESS AUTOCOMPLETE

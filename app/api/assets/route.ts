@@ -4,12 +4,14 @@ import {
   REAL_ESTATE_SUBTYPES,
   buildDefaultLabel,
   toLegacyEntries,
+  getEffectiveAssetAmountManwon,
+  getLinkedLoanAmountManwon,
   type AssetCategoryKey,
   type AssetExtraData,
   type AssetEntry,
   type AssetSubtypeKey,
 } from "../../../lib/assets";
-import { ensureAssetEntriesTable, ensureAssetHoldingsTable, getPool } from "../../../lib/db";
+import { ensureAssetEntriesTable, ensureAssetHoldingsTable, ensureAssetSnapshotsTable, getPool } from "../../../lib/db";
 import { readSession } from "../../../lib/session";
 
 type AssetsBody = {
@@ -169,6 +171,25 @@ export async function POST(request: Request) {
     const loanTotal = normalizedEntries
       .filter((entry) => entry.categoryKey === "loan")
       .reduce((sum, entry) => sum + entry.amountManwon, 0);
+
+    // ── 스냅샷 저장 (오늘 날짜 기준, UPSERT) ──
+    try {
+      await ensureAssetSnapshotsTable();
+      const categoryBreakdown: Record<string, number> = {};
+      for (const entry of normalizedEntries) {
+        if (entry.categoryKey !== "loan") {
+          categoryBreakdown[entry.categoryKey] = (categoryBreakdown[entry.categoryKey] ?? 0) + entry.amountManwon;
+        }
+      }
+      const pool2 = getPool();
+      await pool2.query(
+        `INSERT INTO asset_snapshots (username, snapshot_date, total_assets_manwon, total_loans_manwon, net_assets_manwon, category_breakdown)
+         VALUES ($1, CURRENT_DATE, $2, $3, $4, $5::jsonb)
+         ON CONFLICT (username, snapshot_date)
+         DO UPDATE SET total_assets_manwon=$2, total_loans_manwon=$3, net_assets_manwon=$4, category_breakdown=$5::jsonb, created_at=NOW()`,
+        [username, assetTotal, loanTotal, assetTotal - loanTotal, JSON.stringify(categoryBreakdown)],
+      );
+    } catch { /* 스냅샷 저장 실패는 무시 */ }
 
     return apiOk({ entries: normalizedEntries, totalAssets: assetTotal, netAssets: assetTotal - loanTotal });
   } catch (error) {

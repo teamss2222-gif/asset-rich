@@ -26,6 +26,7 @@ export function getPool() {
 let usersTableInitialized = false;
 let assetHoldingsTableInitialized = false;
 let assetEntriesTableInitialized = false;
+let assetSnapshotsTableInitialized = false;
 let userProfilesTableInitialized = false;
 let scheduleTablesInitialized = false;
 let integrationConnectionsTableInitialized = false;
@@ -111,6 +112,30 @@ export async function ensureAssetEntriesTable() {
   `);
 
   assetEntriesTableInitialized = true;
+}
+
+export async function ensureAssetSnapshotsTable() {
+  if (assetSnapshotsTableInitialized) return;
+  await ensureUsersTable();
+  const pool = getPool();
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS asset_snapshots (
+      id SERIAL PRIMARY KEY,
+      username VARCHAR(64) NOT NULL REFERENCES users(username) ON DELETE CASCADE,
+      snapshot_date DATE NOT NULL,
+      total_assets_manwon INTEGER NOT NULL DEFAULT 0,
+      total_loans_manwon INTEGER NOT NULL DEFAULT 0,
+      net_assets_manwon INTEGER NOT NULL DEFAULT 0,
+      category_breakdown JSONB NOT NULL DEFAULT '{}'::jsonb,
+      created_at TIMESTAMP DEFAULT NOW(),
+      UNIQUE(username, snapshot_date)
+    );
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS asset_snapshots_username_date_idx
+    ON asset_snapshots (username, snapshot_date DESC);
+  `);
+  assetSnapshotsTableInitialized = true;
 }
 
 export async function ensureUserProfilesTable() {

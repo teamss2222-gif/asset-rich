@@ -56,13 +56,13 @@ export default function CardsPage() {
       const res = await fetch("/api/cards/seed", { method: "POST" });
       const json = await res.json() as { ok: boolean; message?: string };
       if (json.ok) {
-        setCrawlMsg(`? ${json.message ?? "»ùÇÃ µ¥ÀÌÅÍ Ãß°¡ ¿Ï·á"}`);
+        setCrawlMsg(`? ${json.message ?? "ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ß°ï¿½ ï¿½Ï·ï¿½"}`);
         await fetchCards();
       } else {
-        setCrawlMsg("?? »ùÇÃ µ¥ÀÌÅÍ Ãß°¡ ½ÇÆÐ");
+        setCrawlMsg("?? ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ß°ï¿½ ï¿½ï¿½ï¿½ï¿½");
       }
     } catch {
-      setCrawlMsg("?? ¼­¹ö ¿À·ù");
+      setCrawlMsg("?? ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½");
     }
     setSeeding(false);
     setTimeout(() => setCrawlMsg(""), 5000);
@@ -78,17 +78,17 @@ export default function CardsPage() {
       const idJson = await idRes.json();
       ids = idJson.data ?? [];
     } catch {
-      setCrawlMsg("Ä«µå ID ¸ñ·Ï Á¶È¸ ½ÇÆÐ");
+      setCrawlMsg("Ä«ï¿½ï¿½ ID ï¿½ï¿½ï¿½ ï¿½ï¿½È¸ ï¿½ï¿½ï¿½ï¿½");
       setCrawling(false);
       return;
     }
 
     let success = 0;
     let failed = 0;
-    setCrawlProgress({ done: 0, total: ids.length, current: "ÁØºñ Áß..." });
+    setCrawlProgress({ done: 0, total: ids.length, current: "ï¿½Øºï¿½ ï¿½ï¿½..." });
 
     for (let i = 0; i < ids.length; i++) {
-      setCrawlProgress({ done: i, total: ids.length, current: `Ä«µå #${ids[i]} Å©·Ñ¸µ Áß...` });
+      setCrawlProgress({ done: i, total: ids.length, current: `Ä«ï¿½ï¿½ #${ids[i]} Å©ï¿½Ñ¸ï¿½ ï¿½ï¿½...` });
       try {
         const res = await fetch("/api/cards/crawl", {
           method: "POST",
@@ -101,11 +101,11 @@ export default function CardsPage() {
           setCrawlProgress({ done: i + 1, total: ids.length, current: `? ${json.data.name}` });
         } else {
           failed++;
-          setCrawlProgress({ done: i + 1, total: ids.length, current: `? Ä«µå #${ids[i]} ½ÇÆÐ` });
+          setCrawlProgress({ done: i + 1, total: ids.length, current: `? Ä«ï¿½ï¿½ #${ids[i]} ï¿½ï¿½ï¿½ï¿½` });
         }
       } catch {
         failed++;
-        setCrawlProgress({ done: i + 1, total: ids.length, current: `? Ä«µå #${ids[i]} ¿À·ù` });
+        setCrawlProgress({ done: i + 1, total: ids.length, current: `? Ä«ï¿½ï¿½ #${ids[i]} ï¿½ï¿½ï¿½ï¿½` });
       }
       await new Promise(r => setTimeout(r, 300));
     }
@@ -114,9 +114,9 @@ export default function CardsPage() {
     await fetchCards();
     setCrawling(false);
     if (success === 0) {
-      setCrawlMsg(`?? Å©·Ñ¸µ ½ÇÆÐ (${failed}°Ç) ? »çÀÌÆ® Á¢±ÙÀÌ Â÷´ÜµÆÀ» ¼ö ÀÖ½À´Ï´Ù. "Á÷Á¢ ÀÔ·Â"À¸·Î Ä«µå¸¦ Ãß°¡ÇÏ¼¼¿ä.`);
+      setCrawlMsg(`?? Å©ï¿½Ñ¸ï¿½ ï¿½ï¿½ï¿½ï¿½ (${failed}ï¿½ï¿½) ? ï¿½ï¿½ï¿½ï¿½Æ® ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Üµï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½Ö½ï¿½ï¿½Ï´ï¿½. "ï¿½ï¿½ï¿½ï¿½ ï¿½Ô·ï¿½"ï¿½ï¿½ï¿½ï¿½ Ä«ï¿½å¸¦ ï¿½ß°ï¿½ï¿½Ï¼ï¿½ï¿½ï¿½.`);
     } else {
-      setCrawlMsg(`? ¼º°ø ${success}°Ç / ½ÇÆÐ ${failed}°Ç`);
+      setCrawlMsg(`? ï¿½ï¿½ï¿½ï¿½ ${success}ï¿½ï¿½ / ï¿½ï¿½ï¿½ï¿½ ${failed}ï¿½ï¿½`);
     }
     setTimeout(() => setCrawlMsg(""), 12000);
   };
@@ -129,7 +129,7 @@ export default function CardsPage() {
       .map(line => {
         const idx = line.indexOf(":");
         if (idx > 0) return { category: line.slice(0, idx).trim(), summary: line.slice(idx + 1).trim() };
-        return { category: "±âÅ¸", summary: line.trim() };
+        return { category: "ï¿½ï¿½Å¸", summary: line.trim() };
       })
       .filter(b => b.summary.length > 0);
 
@@ -148,7 +148,7 @@ export default function CardsPage() {
   };
 
   const deleteCard = async (gorillaId: number) => {
-    if (!confirm("ÀÌ Ä«µå¸¦ »èÁ¦ÇÏ½Ã°Ú½À´Ï±î?")) return;
+    if (!confirm("ï¿½ï¿½ Ä«ï¿½å¸¦ ï¿½ï¿½ï¿½ï¿½ï¿½Ï½Ã°Ú½ï¿½ï¿½Ï±ï¿½?")) return;
     await fetch(`/api/cards?id=${gorillaId}`, { method: "DELETE" });
     setSelected(null);
     await fetchCards();
@@ -167,11 +167,11 @@ export default function CardsPage() {
       <div className="cards-page">
         <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}>
           <button className="btn btn-ghost btn-sm" onClick={() => setSelected(null)}>
-            ¡ç ¸ñ·ÏÀ¸·Î
+            ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
           </button>
           <button className="btn btn-ghost btn-sm" style={{ color: "#ff453a" }}
             onClick={() => deleteCard(selected.gorilla_id)}>
-            ?? »èÁ¦
+            ?? ï¿½ï¿½ï¿½ï¿½
           </button>
         </div>
 
@@ -184,24 +184,24 @@ export default function CardsPage() {
               <h2 className="card-detail-name">{selected.name}</h2>
               <p className="card-detail-company">{selected.company}</p>
               <div className="card-detail-meta">
-                {selected.annual_fee && <span>¿¬È¸ºñ: {selected.annual_fee}</span>}
-                {selected.min_spending && <span>Àü¿ù½ÇÀû: {selected.min_spending}</span>}
-                {selected.brand && <span>ºê·£µå: {selected.brand}</span>}
+                {selected.annual_fee && <span>ï¿½ï¿½È¸ï¿½ï¿½: {selected.annual_fee}</span>}
+                {selected.min_spending && <span>ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½: {selected.min_spending}</span>}
+                {selected.brand && <span>ï¿½ê·£ï¿½ï¿½: {selected.brand}</span>}
               </div>
             </div>
           </div>
 
-          <h3 className="card-benefits-title">?? ÇýÅÃ</h3>
+          <h3 className="card-benefits-title">?? ï¿½ï¿½ï¿½ï¿½</h3>
           <ul className="card-benefits-list">
             {selected.benefits.length > 0 ? (
               selected.benefits.map((b, i) => (
                 <li key={i} className="card-benefit-item">
-                  <span className="card-benefit-cat">{b.category || "±âÅ¸"}</span>
+                  <span className="card-benefit-cat">{b.category || "ï¿½ï¿½Å¸"}</span>
                   <span className="card-benefit-txt">{b.summary}</span>
                 </li>
               ))
             ) : (
-              <li className="card-benefit-item">ÇýÅÃ Á¤º¸ ¾øÀ½</li>
+              <li className="card-benefit-item">ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½</li>
             )}
           </ul>
         </div>
@@ -212,72 +212,72 @@ export default function CardsPage() {
   return (
     <div className="cards-page">
       <div className="cards-header">
-        <h1 className="cards-title">?? Ä«µå ÇýÅÃ ºñ±³</h1>
+        <h1 className="cards-title">?? Ä«ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½</h1>
         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
           <button className="btn btn-ghost btn-sm" onClick={loadSampleData} disabled={seeding || crawling}>
-            {seeding ? "·Îµå Áß..." : "?? »ùÇÃ µ¥ÀÌÅÍ"}
+            {seeding ? "ï¿½Îµï¿½ ï¿½ï¿½..." : "?? ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½"}
           </button>
           <button className="btn btn-ghost btn-sm" onClick={() => setShowManual(v => !v)}>
-            ?? Á÷Á¢ ÀÔ·Â
+            ?? ï¿½ï¿½ï¿½ï¿½ ï¿½Ô·ï¿½
           </button>
           <button className="btn btn-primary btn-sm" onClick={startCrawl} disabled={crawling || seeding}>
             {crawling
               ? crawlProgress.total > 0
                 ? `?? ${crawlProgress.done}/${crawlProgress.total}`
-                : "?? ID ¼öÁý Áß¡¦"
-              : "?? Å©·Ñ¸µ ½ÇÇà"}
+                : "?? ID ï¿½ï¿½ï¿½ï¿½ ï¿½ß¡ï¿½"
+              : "?? Å©ï¿½Ñ¸ï¿½ ï¿½ï¿½ï¿½ï¿½"}
           </button>
         </div>
       </div>
 
       {showManual && (
         <div className="card-manual-form">
-          <h3 className="card-manual-title">?? Ä«µå Á÷Á¢ ÀÔ·Â</h3>
+          <h3 className="card-manual-title">?? Ä«ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ô·ï¿½</h3>
           <div className="card-manual-grid">
             <div className="card-manual-field">
-              <label>Ä«µå¸í *</label>
-              <input className="sched-input" placeholder="¿¹) ½ÅÇÑ Deep Dream" value={form.name}
+              <label>Ä«ï¿½ï¿½ï¿½ *</label>
+              <input className="sched-input" placeholder="ï¿½ï¿½) ï¿½ï¿½ï¿½ï¿½ Deep Dream" value={form.name}
                 onChange={e => setForm(p => ({ ...p, name: e.target.value }))} />
             </div>
             <div className="card-manual-field">
-              <label>Ä«µå»ç</label>
-              <input className="sched-input" placeholder="¿¹) ½ÅÇÑÄ«µå" value={form.company}
+              <label>Ä«ï¿½ï¿½ï¿½</label>
+              <input className="sched-input" placeholder="ï¿½ï¿½) ï¿½ï¿½ï¿½ï¿½Ä«ï¿½ï¿½" value={form.company}
                 onChange={e => setForm(p => ({ ...p, company: e.target.value }))} />
             </div>
             <div className="card-manual-field">
-              <label>¿¬È¸ºñ</label>
-              <input className="sched-input" placeholder="¿¹) ±¹³» 15,000¿ø" value={form.annual_fee}
+              <label>ï¿½ï¿½È¸ï¿½ï¿½</label>
+              <input className="sched-input" placeholder="ï¿½ï¿½) ï¿½ï¿½ï¿½ï¿½ 15,000ï¿½ï¿½" value={form.annual_fee}
                 onChange={e => setForm(p => ({ ...p, annual_fee: e.target.value }))} />
             </div>
             <div className="card-manual-field">
-              <label>Àü¿ù½ÇÀû</label>
-              <input className="sched-input" placeholder="¿¹) 30¸¸¿ø ÀÌ»ó" value={form.min_spending}
+              <label>ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½</label>
+              <input className="sched-input" placeholder="ï¿½ï¿½) 30ï¿½ï¿½ï¿½ï¿½ ï¿½Ì»ï¿½" value={form.min_spending}
                 onChange={e => setForm(p => ({ ...p, min_spending: e.target.value }))} />
             </div>
             <div className="card-manual-field">
-              <label>ºê·£µå</label>
-              <input className="sched-input" placeholder="¿¹) VISA" value={form.brand}
+              <label>ï¿½ê·£ï¿½ï¿½</label>
+              <input className="sched-input" placeholder="ï¿½ï¿½) VISA" value={form.brand}
                 onChange={e => setForm(p => ({ ...p, brand: e.target.value }))} />
             </div>
             <div className="card-manual-field">
-              <label>ÀÌ¹ÌÁö URL</label>
+              <label>ï¿½Ì¹ï¿½ï¿½ï¿½ URL</label>
               <input className="sched-input" placeholder="https://..." value={form.image_url}
                 onChange={e => setForm(p => ({ ...p, image_url: e.target.value }))} />
             </div>
             <div className="card-manual-field card-manual-full">
-              <label>ÇýÅÃ (ÇÑ ÁÙ¿¡ ÇÏ³ª, <code>Ä«Å×°í¸®: ³»¿ë</code> Çü½Ä)</label>
+              <label>ï¿½ï¿½ï¿½ï¿½ (ï¿½ï¿½ ï¿½Ù¿ï¿½ ï¿½Ï³ï¿½, <code>Ä«ï¿½×°ï¿½ï¿½ï¿½: ï¿½ï¿½ï¿½ï¿½</code> ï¿½ï¿½ï¿½ï¿½)</label>
               <textarea className="sched-textarea" rows={4}
-                placeholder={"ÆíÀÇÁ¡: CU¡¤GS25 10% ÇÒÀÎ\nÄ«Æä: ½ºÅ¸¹÷½º 20% Ä³½Ã¹é\n±³Åë: ¹ö½º¡¤ÁöÇÏÃ¶ 10% Ä³½Ã¹é"}
+                placeholder={"ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½: CUï¿½ï¿½GS25 10% ï¿½ï¿½ï¿½ï¿½\nÄ«ï¿½ï¿½: ï¿½ï¿½Å¸ï¿½ï¿½ï¿½ï¿½ 20% Ä³ï¿½Ã¹ï¿½\nï¿½ï¿½ï¿½ï¿½: ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ã¶ 10% Ä³ï¿½Ã¹ï¿½"}
                 value={form.benefitLines}
                 onChange={e => setForm(p => ({ ...p, benefitLines: e.target.value }))} />
             </div>
           </div>
           <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.75rem" }}>
             <button className="btn btn-primary btn-sm" disabled={!form.name.trim() || saving} onClick={saveManual}>
-              {saving ? "ÀúÀå Áß..." : "?? Ä«µå ÀúÀå"}
+              {saving ? "ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½..." : "?? Ä«ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½"}
             </button>
             <button className="btn btn-ghost btn-sm" onClick={() => { setShowManual(false); setForm(EMPTY_FORM); }}>
-              Ãë¼Ò
+              ï¿½ï¿½ï¿½
             </button>
           </div>
         </div>
@@ -300,25 +300,25 @@ export default function CardsPage() {
       <input
         type="text"
         className="cards-search"
-        placeholder="Ä«µå¸í, Ä«µå»ç, ÇýÅÃ °Ë»ö..."
+        placeholder="Ä«ï¿½ï¿½ï¿½, Ä«ï¿½ï¿½ï¿½, ï¿½ï¿½ï¿½ï¿½ ï¿½Ë»ï¿½..."
         value={filter}
         onChange={(e) => setFilter(e.target.value)}
       />
 
       {loading ? (
-        <p className="cards-empty">·Îµù Áß...</p>
+        <p className="cards-empty">ï¿½Îµï¿½ ï¿½ï¿½...</p>
       ) : filtered.length === 0 ? (
         <div style={{ textAlign: "center", padding: "3rem 0" }}>
           <p className="cards-empty" style={{ marginBottom: "1rem" }}>
-            {cards.length === 0 ? "ÀúÀåµÈ Ä«µå°¡ ¾ø½À´Ï´Ù." : "°Ë»ö °á°ú°¡ ¾ø½À´Ï´Ù."}
+            {cards.length === 0 ? "ï¿½ï¿½ï¿½ï¿½ï¿½ Ä«ï¿½å°¡ ï¿½ï¿½ï¿½ï¿½ï¿½Ï´ï¿½." : "ï¿½Ë»ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï´ï¿½."}
           </p>
           {cards.length === 0 && (
             <div style={{ display: "flex", gap: "0.75rem", justifyContent: "center", flexWrap: "wrap" }}>
               <button className="btn btn-primary btn-sm" onClick={() => setShowManual(true)}>
-                ?? Ä«µå Á÷Á¢ Ãß°¡ÇÏ±â
+                ?? Ä«ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ß°ï¿½ï¿½Ï±ï¿½
               </button>
               <button className="btn btn-ghost btn-sm" onClick={loadSampleData} disabled={seeding}>
-                {seeding ? "·Îµå Áß..." : "?? »ùÇÃ µ¥ÀÌÅÍ ºÒ·¯¿À±â"}
+                {seeding ? "ï¿½Îµï¿½ ï¿½ï¿½..." : "?? ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ò·ï¿½ï¿½ï¿½ï¿½ï¿½"}
               </button>
             </div>
           )}
@@ -338,7 +338,7 @@ export default function CardsPage() {
                 {c.benefits.length > 0 && (
                   <p className="card-item-benefit">
                     {c.benefits[0].category}: {c.benefits[0].summary.slice(0, 30)}
-                    {c.benefits[0].summary.length > 30 ? "¡¦" : ""}
+                    {c.benefits[0].summary.length > 30 ? "ï¿½ï¿½" : ""}
                   </p>
                 )}
               </div>
