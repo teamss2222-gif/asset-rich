@@ -1,14 +1,7 @@
 ﻿import { NextRequest } from "next/server";
 import { apiOk, apiError } from "@/lib/api-response";
 
-const SYSTEM_PROMPT = `
-1. **이슈 배경** - 왜 지금 화제가 되고 있는지
-2. **핵심 내용** - 무슨 일이 있었는지
-3. **사회적 반응** - 여론, SNS, 언론의 반응
-4. **향후 전망** - 앞으로 전개될 방향 (해당되는 경우)
-사실에 근거하고 균형 잡힌 시각으로 3~4 문단으로 요약해주세요.
-섹션 제목은 **볼드체**로 표시해주세요.
-`.trim();
+const SYSTEM_PROMPT = `한국 뉴스 요약 전문가. 키워드가 왜 지금 이슈인지 2문장으로만 답하라. 한국어.`;
 function generateFallbackExplanation(keyword: string): string {
   return [
     `**이슈 배경**`,
@@ -62,22 +55,17 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const now = new Date().toLocaleDateString("ko-KR", {
-      year: "numeric", month: "long", day: "numeric",
-    });
-
-    const sysPrompt = `당신은 한국 실시간 검색어 트렌드 전문 분석가입니다.\n${SYSTEM_PROMPT}`;
-    const userMsg = `오늘 날짜: ${now}\n키워드: "${keyword}"\n\n이 키워드가 왜 지금 실시간 검색어에 오르고 있는지 핵심 내용을 분석해주세요.`;
+    const userMsg = `"${keyword}" — 왜 지금 이슈?`;
 
     const res = await fetch(chatUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json", "api-key": apiKey },
       body: JSON.stringify({
         messages: [
-          { role: "system", content: sysPrompt },
+          { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: userMsg },
         ],
-        max_completion_tokens: 2000,
+        max_completion_tokens: 800,
       }),
       signal: AbortSignal.timeout(55000),
     });
