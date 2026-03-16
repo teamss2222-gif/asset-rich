@@ -7,6 +7,7 @@ const navItems = [
   { href: "/dashboard", label: "개요", icon: "🏠" },
   { href: "/dashboard/asset", label: "자산관리", icon: "🪙" },
   { href: "/dashboard/cards", label: "카드혜택", icon: "💳" },
+  { href: "/dashboard/dictionary", label: "국어사전", icon: "📚" },
   { href: "/dashboard/game", label: "게임", icon: "🎮" },
   { href: "/dashboard/setting", label: "설정", icon: "🔧" },
 ];

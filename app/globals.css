@@ -2895,3 +2895,34 @@ body.bg-loggedin {
   .dict-tab-btn span:last-child { display: none; }
   .dict-card-summary { display: none; }
 }
+
+/* ── 초등 국어사전 (ElementaryDictionary) ── */
+.dict-header { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+.dict-api-badge { font-size: 0.68rem; font-weight: 600; padding: 0.18rem 0.6rem; border-radius: 99px; }
+.dict-api-badge.api-live  { background: rgba(3,199,90,0.13); color: #03c75a; border: 1px solid rgba(3,199,90,0.3); }
+.dict-api-badge.api-local { background: rgba(99,102,241,0.1); color: #818cf8; border: 1px solid rgba(99,102,241,0.25); }
+.dict-search-row  { position: relative; }
+.dict-search-wrap { position: relative; }
+.dict-search-clear {
+  position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%);
+  background: transparent; border: none; color: var(--text-3); cursor: pointer; font-size: 1rem; line-height: 1;
+}
+.dict-list { display: flex; flex-direction: column; gap: 0.5rem; }
+.dict-spinner {
+  width: 18px; height: 18px; border: 2px solid var(--border);
+  border-top-color: #818cf8; border-radius: 50%;
+  animation: spin 0.7s linear infinite; display: inline-block; vertical-align: middle; margin-right: 0.4rem;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.dict-empty { display: flex; flex-direction: column; align-items: center; gap: 0.4rem; padding: 2.5rem 1rem; color: var(--text-2); }
+.dict-empty-icon { font-size: 2.2rem; }
+.dict-empty-sub  { font-size: 0.8rem; color: var(--text-3); }
+/* 카드 (초등사전 버전) */
+.dict-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r); padding: 0.9rem 1.1rem; transition: border-color var(--t) var(--ease); }
+.dict-card:hover { border-color: var(--border-hover); }
+.dict-card-top { display: flex; align-items: center; gap: 0.55rem; margin-bottom: 0.45rem; }
+.dict-word  { font-size: 1.15rem; font-weight: 800; color: var(--text-1); letter-spacing: -0.03em; }
+.dict-krdict-tag { font-size: 0.64rem; padding: 0.12rem 0.45rem; border-radius: 99px; background: rgba(3,199,90,0.12); color: #03c75a; border: 1px solid rgba(3,199,90,0.28); font-weight: 600; }
+.dict-def   { font-size: 0.88rem; color: var(--text-1); line-height: 1.65; }
+.dict-ex    { font-size: 0.8rem; color: var(--text-2); margin-top: 0.4rem; font-style: italic; }
+.dict-ex-label { font-style: normal; font-weight: 700; color: var(--text-3); margin-right: 0.2rem; }
