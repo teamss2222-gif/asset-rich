@@ -116,11 +116,9 @@ export async function GET(req: NextRequest) {
       url.searchParams.set("q", q);
       url.searchParams.set("part", "word");
       url.searchParams.set("sort", "popular");
-      url.searchParams.set("num", "20");
+      url.searchParams.set("num", "50");
       url.searchParams.set("advanced", "y");
       url.searchParams.set("target_type", "search");
-      url.searchParams.set("pos", "1");  // 명사 위주
-      url.searchParams.set("level", "1");  // 초급
 
       const res = await fetch(url.toString(), {
         headers: { Accept: "application/json" },
@@ -130,7 +128,7 @@ export async function GET(req: NextRequest) {
       if (res.ok) {
         const text = await res.text();
         // KRDict는 XML 반환 — 파싱
-        const entries = parseKRDictXML(text, q);
+        const entries = parseKRDictXML(text);
         if (entries.length > 0) {
           return apiOk({ entries, source: "krdict", hasApiKey: true });
         }
@@ -176,16 +174,25 @@ function getChoseong(ch: string): string {
   return norm[c] ?? c;
 }
 
-function parseKRDictXML(xml: string, q: string): DictionaryEntry[] {
+function parseKRDictXML(xml: string): DictionaryEntry[] {
   const entries: DictionaryEntry[] = [];
   const itemRe = /<item>([\s\S]*?)<\/item>/g;
   let m: RegExpExecArray | null;
   while ((m = itemRe.exec(xml)) !== null) {
     const block = m[1];
-    const word = extractTag(block, "word") ?? extractTag(block, "target_code") ?? "";
-    const pos = extractTag(block, "pos") ?? "명사";
-    const def = extractTag(block, "definition") ?? "";
-    const ex = extractTag(block, "example") ?? "";
+    const word = extractTag(block, "word") ?? "";
+    const pos = extractTag(block, "pos") ?? "";
+    // KRDict returns definitions inside <sense> blocks
+    const senseMatch = /<sense>([\s\S]*?)<\/sense>/.exec(block);
+    let def = "";
+    let ex = "";
+    if (senseMatch) {
+      def = extractTag(senseMatch[1], "definition") ?? "";
+      ex = extractTag(senseMatch[1], "example") ?? "";
+    }
+    // fallback: definition directly on item
+    if (!def) def = extractTag(block, "definition") ?? "";
+    if (!ex) ex = extractTag(block, "example") ?? "";
     if (word && def) {
       entries.push({ word, pos, definition: def, example: ex, source: "krdict" });
     }
