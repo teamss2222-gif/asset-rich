@@ -84,6 +84,7 @@ export default function IssuesClient() {
   const [explainError, setExplainError] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const [crawlMsg, setCrawlMsg] = useState("");
+  const [countdown, setCountdown] = useState(0);
 
   const fetchIssues = useCallback(async (g: string, a: string) => {
     setLoading(true);
@@ -127,28 +128,50 @@ export default function IssuesClient() {
     setTimeout(() => setCrawlMsg(""), 5000);
   };
 
+  const MAX_WAIT = 30;
   const handleItemClick = async (issue: IssueRecord) => {
     setSelected(issue);
     setExplanation("");
     setExplainError("");
     setExplaining(true);
+    setCountdown(MAX_WAIT);
 
-    const res = await requestApi<{ keyword: string; explanation: string }>(
-      "/api/issues/explain",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ keyword: issue.keyword }),
-      },
-    );
+    // 카운트다운 타이머
+    const tick = setInterval(() => {
+      setCountdown((c) => {
+        if (c <= 1) { clearInterval(tick); return 0; }
+        return c - 1;
+      });
+    }, 1000);
 
-    if (res.ok) {
-      setExplanation(res.data.explanation ?? "");
-    } else {
-      const detail = (res.raw as Record<string, string> | null)?.details;
-      setExplainError(detail ? `${res.message}\n\n[detail] ${detail}` : res.message);
+    // 30초 클라이언트 타임아웃
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), MAX_WAIT * 1000);
+
+    try {
+      const res = await requestApi<{ keyword: string; explanation: string }>(
+        "/api/issues/explain",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ keyword: issue.keyword }),
+          signal: controller.signal,
+        },
+      );
+      if (res.ok) {
+        setExplanation(res.data.explanation ?? "");
+      } else {
+        const detail = (res.raw as Record<string, string> | null)?.details;
+        setExplainError(detail ? `${res.message}\n\n[detail] ${detail}` : res.message);
+      }
+    } catch {
+      setExplainError("30초 내 응답이 없어 중단되었습니다.");
+    } finally {
+      clearInterval(tick);
+      clearTimeout(timeoutId);
+      setCountdown(0);
+      setExplaining(false);
     }
-    setExplaining(false);
   };
 
   const clearDetail = () => {
@@ -345,7 +368,10 @@ export default function IssuesClient() {
                 {explaining ? (
                   <div className="issue-explain-loading">
                     <DotPulse />
-                    <span>분석 중입니다...</span>
+                    <span>분석 중... ({countdown}초)</span>
+                    <div className="issue-countdown-bar">
+                      <div className="issue-countdown-fill" style={{ width: `${(countdown / 30) * 100}%` }} />
+                    </div>
                   </div>
                 ) : explainError ? (
                   <div className="issue-no-openai">⚠️ {explainError}</div>

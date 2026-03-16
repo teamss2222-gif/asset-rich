@@ -1485,7 +1485,9 @@ body.bg-loggedin {
 .issue-explain-section { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r); padding: 1.2rem; }
 .issue-explain-title { font-size: 0.74rem; font-weight: 600; color: var(--text-3); letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 0.85rem; }
 .issue-explain-text { font-size: 0.875rem; line-height: 1.8; color: var(--text-2); white-space: pre-wrap; }
-.issue-explain-loading { display: flex; align-items: center; gap: 0.6rem; color: var(--text-3); font-size: 0.84rem; }
+.issue-explain-loading { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; padding: 1.2rem 0; color: var(--text-2); font-size: 0.82rem; }
+.issue-countdown-bar { width: 100%; height: 3px; background: rgba(255,255,255,0.1); border-radius: 99px; overflow: hidden; margin-top: 0.2rem; }
+.issue-countdown-fill { height: 100%; background: var(--accent); border-radius: 99px; transition: width 1s linear; }
 .issue-no-openai { font-size: 0.82rem; color: var(--warning); padding: 0.75rem 1rem; background: rgba(255,214,10,0.08); border: 1px solid rgba(255,214,10,0.2); border-radius: var(--r-sm); line-height: 1.6; }
 .issue-no-openai code { background: rgba(255,255,255,0.1); padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.78rem; }
 
