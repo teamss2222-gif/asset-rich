@@ -505,50 +505,73 @@ body.bg-loggedin {
 /* ══════════════════════════
    ASSET MANAGER LAYOUT
    ══════════════════════════ */
-.asset-layout { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.85fr); gap: 1rem; }
-.asset-main-column { display: grid; gap: 1rem; }
-.asset-summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.65rem; }
 
-.asset-summary-card,.asset-panel,.asset-chart-panel {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--r);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  box-shadow: var(--shadow-sm);
+/* 2-column split layout */
+.asset-split { display: grid; grid-template-columns: minmax(260px, 320px) minmax(0, 1fr); gap: 1.25rem; align-items: start; }
+.asset-left-col { display: grid; gap: 0.85rem; position: sticky; top: 1rem; }
+.asset-right-col { display: grid; gap: 0.85rem; }
+
+/* Pie chart */
+.asset-pie-center { display: flex; justify-content: center; padding: 0.5rem 0; }
+.asset-pie-empty {
+  min-height: 160px; background: rgba(255,255,255,0.03); border: 1px dashed var(--border-hover);
+  border-radius: var(--r); display: grid; place-items: center; text-align: center;
+  padding: 1.2rem; color: var(--text-2); font-size: 0.8rem; line-height: 1.6;
 }
-.asset-summary-card { padding: 0.9rem 1rem; }
-.asset-summary-card p,.asset-summary-card span { font-size: 0.72rem; color: var(--text-2); }
-.asset-summary-card h2 { margin-top: 0.25rem; font-size: 1rem; font-weight: 700; letter-spacing: -0.03em; }
 
-.asset-summary-card-warn     { background: rgba(255,69,58,0.1);  border-color: rgba(255,69,58,0.25); }
-.asset-summary-card-strong   { background: rgba(10,132,255,0.1); border-color: rgba(10,132,255,0.25); }
-.asset-summary-card-cashflow { background: rgba(48,209,88,0.1);  border-color: rgba(48,209,88,0.25); }
+/* Legend */
+.asset-legend-simple { display: grid; gap: 0.38rem; }
+.asset-legend-row { display: flex; align-items: center; gap: 0.45rem; font-size: 0.75rem; }
+.asset-legend-label { flex: 1; color: var(--text-2); }
+.asset-legend-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+.asset-legend-pct { font-size: 0.72rem; font-weight: 600; color: var(--text-1); min-width: 40px; text-align: right; }
 
-.realestate-net-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.65rem; }
-.realestate-net-card {
-  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-sm);
-  padding: 0.8rem 0.9rem; display: grid; gap: 0.2rem;
+/* Stat panel */
+.asset-stat-list { border: 1px solid var(--border); border-radius: var(--r-sm); overflow: hidden; }
+.asset-stat-row { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; padding: 0.6rem 0.9rem; font-size: 0.79rem; border-bottom: 1px solid var(--border); background: var(--bg-card); }
+.asset-stat-row:last-child { border-bottom: 0; }
+.asset-stat-row > span:first-child { color: var(--text-2); white-space: nowrap; }
+.asset-stat-row > span:last-child, .asset-stat-row > strong { font-weight: 600; font-size: 0.82rem; }
+.asset-stat-net { background: rgba(10,132,255,0.08) !important; }
+.asset-stat-net strong { color: #0a84ff; font-size: 1rem; letter-spacing: -0.02em; }
+.asset-stat-warn > span:last-child { color: var(--danger); }
+.asset-stat-divider { height: 0; border-bottom: 2px solid rgba(255,255,255,0.07); }
+.asset-stat-hint { padding: 0.35rem 0.9rem; font-size: 0.67rem; color: var(--text-3); background: var(--bg-card); border-bottom: 1px solid var(--border); }
+
+/* Inline cashflow inputs */
+.asset-inline-input { display: flex; align-items: center; gap: 0.3rem; }
+.asset-inline-input input {
+  width: 84px; background: var(--bg-input); border: 1px solid var(--border);
+  border-radius: var(--r-sm); height: 1.75rem; padding: 0 0.5rem;
+  font-size: 0.78rem; font-family: var(--font); color: var(--text-1); outline: none; text-align: right;
+  transition: border-color var(--t) var(--ease);
 }
-.realestate-net-card p      { font-size: 0.7rem; color: var(--text-2); }
-.realestate-net-card h3     { font-size: 0.875rem; font-weight: 700; letter-spacing: -0.025em; }
-.realestate-net-card span   { font-size: 0.72rem; color: var(--text-2); }
-.realestate-net-card strong { margin-top: 0.15rem; font-size: 0.82rem; color: var(--success); }
+.asset-inline-input input:focus { border-color: var(--border-focus); }
+.asset-inline-input > span { font-size: 0.7rem; color: var(--text-3); }
 
-.asset-panel,.asset-chart-panel { padding: 1.1rem; }
-.asset-panel-head,.asset-chart-head,.asset-group-head { display: flex; justify-content: space-between; gap: 0.8rem; align-items: flex-start; }
-.asset-panel-head h1,.asset-chart-head h2 { margin-top: 0.15rem; font-size: 1.2rem; font-weight: 700; letter-spacing: -0.035em; }
-.asset-panel-copy,.asset-chart-head span,.asset-group-head p { font-size: 0.75rem; color: var(--text-2); line-height: 1.4; }
-.asset-panel-copy { max-width: 270px; }
+/* Category tabs */
+.asset-cat-tab-bar { display: flex; flex-wrap: wrap; gap: 0.4rem; padding-bottom: 0.7rem; border-bottom: 1px solid var(--border); }
+.asset-cat-tab {
+  display: flex; align-items: center; gap: 0.3rem;
+  padding: 0.32rem 0.72rem; border-radius: 99px;
+  border: 1px solid var(--border); background: rgba(255,255,255,0.04);
+  font-size: 0.77rem; font-weight: 500; color: var(--text-2); cursor: pointer;
+  font-family: var(--font); transition: all var(--t) var(--ease);
+}
+.asset-cat-tab:hover { border-color: var(--border-hover); color: var(--text-1); }
+.asset-cat-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.asset-cat-hint { padding: 3rem 1rem; text-align: center; color: var(--text-3); font-size: 0.82rem; border: 1px dashed var(--border); border-radius: var(--r); }
+.asset-cat-form-header { display: flex; align-items: center; gap: 0.55rem; padding-bottom: 0.6rem; border-bottom: 1px solid var(--border); margin-bottom: 0.6rem; }
+.asset-cat-form-header strong { font-size: 0.9rem; font-weight: 700; }
+.asset-cat-form-desc { font-size: 0.72rem; color: var(--text-3); flex: 1; }
+.asset-cat-form-total { font-size: 0.82rem; font-weight: 600; color: var(--text-2); }
+
+/* Shared elements */
 .asset-kicker { font-size: 0.7rem; font-weight: 600; color: var(--accent); letter-spacing: 0.04em; text-transform: uppercase; }
-.asset-form { margin-top: 0.8rem; }
-.asset-category-stack { display: grid; gap: 0.8rem; }
-.asset-group-card { padding: 0.9rem; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: var(--r-sm); }
-.asset-group-card-liability { background: rgba(255,69,58,0.07); border-color: rgba(255,69,58,0.2); }
-.asset-group-head h3 { font-size: 0.9rem; font-weight: 700; letter-spacing: -0.025em; }
-.asset-group-actions { display: flex; align-items: center; gap: 0.5rem; }
-.asset-group-actions strong { font-size: 0.875rem; font-weight: 700; }
-.asset-row-stack { margin-top: 0.65rem; display: grid; gap: 0.5rem; }
+.asset-form { display: grid; gap: 0.8rem; }
+.asset-panel { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); box-shadow: var(--shadow-sm); padding: 1.1rem; }
+.asset-group-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; vertical-align: middle; }
+.asset-row-stack { display: grid; gap: 0.5rem; }
 .asset-row-card { border: 1px solid var(--border); border-radius: var(--r-sm); background: rgba(255,255,255,0.035); padding: 0.6rem; display: grid; gap: 0.5rem; }
 .asset-row { display: grid; grid-template-columns: 100px minmax(0, 1fr) 160px 64px; gap: 0.5rem; align-items: center; }
 
@@ -599,79 +622,6 @@ body.bg-loggedin {
 .asset-message       { margin-top: 0.7rem; font-size: 0.78rem; font-weight: 500; }
 .asset-message-ok    { color: var(--success); }
 .asset-message-error { color: var(--danger); }
-
-.asset-chart-panel { display: grid; align-content: start; gap: 0.8rem; }
-.asset-bubble-wrap { display: flex; flex-wrap: wrap; gap: 0.7rem; justify-content: center; align-items: center; min-height: 380px; padding: 0.8rem 0.2rem; }
-.asset-bubble {
-  display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
-  padding: 0.7rem; color: var(--text-1); border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 50% !important;
-  box-shadow: var(--shadow-sm);
-  transition: transform var(--t) var(--ease-spring), box-shadow var(--t) var(--ease);
-}
-.asset-bubble:hover { transform: scale(1.06); box-shadow: var(--shadow); }
-.asset-bubble strong { font-size: 0.78rem; font-weight: 600; }
-.asset-bubble span   { margin-top: 0.15rem; font-size: 0.65rem; font-weight: 500; line-height: 1.3; }
-.asset-bubble em     { margin-top: 0.1rem; font-size: 0.62rem; font-style: normal; opacity: 0.8; }
-
-.asset-empty-state {
-  min-height: 280px; background: rgba(255,255,255,0.03); border: 1px dashed var(--border-hover);
-  border-radius: var(--r); display: grid; place-items: center; text-align: center; padding: 1.2rem;
-  color: var(--text-2); font-size: 0.82rem;
-}
-.asset-empty-state strong { display: block; color: var(--text-1); margin-bottom: 0.35rem; font-weight: 600; }
-
-.asset-liability-box { background: rgba(255,69,58,0.1); border: 1px solid rgba(255,69,58,0.25); border-radius: var(--r-sm); padding: 0.9rem; }
-.asset-liability-box p,.asset-liability-box span { color: rgba(255,100,90,0.8); font-size: 0.72rem; }
-.asset-liability-box strong { display: block; margin-top: 0.25rem; font-size: 1.05rem; font-weight: 700; color: var(--danger); letter-spacing: -0.03em; }
-
-.asset-legend { display: grid; gap: 0.45rem; }
-.asset-legend-item { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto auto; gap: 0.4rem; align-items: center; font-size: 0.72rem; color: var(--text-1); }
-.asset-legend-item strong { font-size: 0.72rem; }
-.asset-legend-dot { width: 10px; height: 10px; border-radius: 3px; }
-.asset-legend-pct { font-size: 0.68rem; color: var(--text-2); min-width: 36px; text-align: right; }
-
-/* 도넛 차트 */
-.donut-wrap { display: flex; justify-content: center; padding: 0.5rem 0; }
-.donut-svg { width: 180px; height: 180px; overflow: visible; }
-
-/* 스파크라인 */
-.asset-sparkline-row { margin-top: 0.25rem; }
-.sparkline-svg { display: block; }
-
-/* 재무 건강 점수 */
-.asset-health-card { transition: border-color 0.3s; }
-.asset-health-score-row { display: flex; align-items: center; gap: 0.6rem; }
-.asset-health-grade { padding: 0.15rem 0.55rem; border-radius: 99px; font-size: 0.72rem; font-weight: 700; }
-.asset-health-detail {
-  display: flex; flex-wrap: wrap; gap: 0.4rem;
-  padding: 0.8rem 1rem; margin-bottom: 0.75rem;
-  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r);
-}
-.asset-health-badge {
-  padding: 0.25rem 0.65rem; border-radius: 99px;
-  background: rgba(255,255,255,0.06); border: 1px solid var(--border);
-  font-size: 0.72rem; color: var(--text-2);
-}
-
-/* 카테고리 헤더 그룹 */
-.asset-group-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 0.45rem; vertical-align: middle; }
-.asset-group-share { font-size: 0.72rem; color: var(--text-2); padding: 0.15rem 0.45rem; background: rgba(255,255,255,0.06); border-radius: 99px; }
-.asset-collapse-icon { font-size: 1.1rem; color: var(--text-3); transition: transform 0.2s; }
-
-/* 부동산 카드 개선 */
-.realestate-net-stats { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0.4rem 0; font-size: 0.74rem; color: var(--text-2); }
-.realestate-net-stats strong { color: var(--text-1); }
-.realestate-net-bottom { display: flex; align-items: center; justify-content: space-between; margin-top: 0.5rem; }
-.realestate-net-value { font-size: 0.9rem; color: var(--success); }
-.realestate-profit-badge { padding: 0.18rem 0.55rem; border-radius: 99px; font-size: 0.72rem; font-weight: 700; }
-.realestate-profit-badge.up { background: rgba(48,209,88,0.15); color: #30d158; border: 1px solid rgba(48,209,88,0.3); }
-.realestate-profit-badge.down { background: rgba(255,69,58,0.15); color: #ff453a; border: 1px solid rgba(255,69,58,0.3); }
-
-/* 이력 차트 */
-.asset-history-panel { padding: 0.2rem 0; }
-.asset-history-chart { background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 0.6rem; }
-.asset-history-labels { display: flex; justify-content: space-between; margin-top: 0.25rem; font-size: 0.65rem; color: var(--text-3); }
 
 /* ══════════════════════════
    ADDRESS AUTOCOMPLETE
@@ -725,8 +675,8 @@ body.bg-loggedin {
    ══════════════════════════ */
 @media (max-width: 860px) {
   .stat-grid, .domain-grid { grid-template-columns: 1fr; }
-  .asset-layout, .asset-summary-grid { grid-template-columns: 1fr; }
-  .realestate-net-grid { grid-template-columns: 1fr; }
+  .asset-split { grid-template-columns: 1fr; }
+  .asset-left-col { position: static; }
   .asset-row { grid-template-columns: 1fr; }
   .realestate-meta-grid, .realestate-meta-actions, .realestate-market-query-grid { grid-template-columns: 1fr; }
   .realestate-address-row { flex-wrap: wrap; }
