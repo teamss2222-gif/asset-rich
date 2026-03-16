@@ -319,7 +319,6 @@ async function fetchAzureOpenAIIssues(): Promise<AIIssueItem[] | null> {
           },
         ],
         max_completion_tokens: 2000,
-        temperature: 0.85,
         response_format: { type: "json_object" },
       }),
       signal: AbortSignal.timeout(9000),
