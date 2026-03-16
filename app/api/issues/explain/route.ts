@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
           { role: "system", content: sysPrompt },
           { role: "user", content: userMsg },
         ],
-        max_completion_tokens: 400,
+        max_completion_tokens: 2000,
       }),
       signal: AbortSignal.timeout(8000),
     });

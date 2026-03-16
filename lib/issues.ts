@@ -318,7 +318,7 @@ async function fetchAzureOpenAIIssues(): Promise<AIIssueItem[] | null> {
 조건: male+female=1.0, a10+a20+a30+a40+a50+a60=1.0. 리스트 수: 정확히 20개.`,
           },
         ],
-        max_completion_tokens: 2000,
+        max_completion_tokens: 8000,
         response_format: { type: "json_object" },
       }),
       signal: AbortSignal.timeout(9000),
