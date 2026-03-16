@@ -14,6 +14,7 @@ type IssueRecord = {
   genderWeights: { male: number; female: number };
   ageWeights: Record<AgeKey, number>;
   meta: { traffic?: string; videoId?: string; thumbnail?: string };
+  explanation: string;
   collectedAt: string;
 };
 
@@ -79,12 +80,6 @@ export default function IssuesClient() {
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState("");
   const [selected, setSelected] = useState<IssueRecord | null>(null);
-  const [explanation, setExplanation] = useState("");
-  const [explaining, setExplaining] = useState(false);
-  const [explainError, setExplainError] = useState("");
-  const [refreshing, setRefreshing] = useState(false);
-  const [crawlMsg, setCrawlMsg] = useState("");
-  const [countdown, setCountdown] = useState(0);
 
   const fetchIssues = useCallback(async (g: string, a: string) => {
     setLoading(true);
@@ -111,85 +106,17 @@ export default function IssuesClient() {
     void fetchIssues(gender, age);
   }, [gender, age, fetchIssues]);
 
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    setCrawlMsg("");
-    const res = await requestApi<{ count: number; sources: string[] }>(
-      "/api/issues/crawl",
-      { method: "POST" },
-    );
-    if (res.ok) {
-      setCrawlMsg(`✅ ${res.data.count}건 수집 완료 (${res.data.sources.join(", ")})`);
-    } else {
-      setCrawlMsg(`⚠️ 수집 실패: ${res.message}`);
-    }
-    await fetchIssues(gender, age);
-    setRefreshing(false);
-    setTimeout(() => setCrawlMsg(""), 5000);
-  };
-
-  const MAX_WAIT = 30;
-  const handleItemClick = async (issue: IssueRecord) => {
-    setSelected(issue);
-    setExplanation("");
-    setExplainError("");
-    setExplaining(true);
-    setCountdown(MAX_WAIT);
-
-    // 카운트다운 타이머
-    const tick = setInterval(() => {
-      setCountdown((c) => {
-        if (c <= 1) { clearInterval(tick); return 0; }
-        return c - 1;
-      });
-    }, 1000);
-
-    // 30초 클라이언트 타임아웃
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), MAX_WAIT * 1000);
-
-    try {
-      const res = await requestApi<{ keyword: string; explanation: string }>(
-        "/api/issues/explain",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ keyword: issue.keyword }),
-          signal: controller.signal,
-        },
-      );
-      if (res.ok) {
-        setExplanation(res.data.explanation ?? "");
-      } else {
-        const detail = (res.raw as Record<string, string> | null)?.details;
-        setExplainError(detail ? `${res.message}\n\n[detail] ${detail}` : res.message);
-      }
-    } catch {
-      setExplainError("30초 내 응답이 없어 중단되었습니다.");
-    } finally {
-      clearInterval(tick);
-      clearTimeout(timeoutId);
-      setCountdown(0);
-      setExplaining(false);
-    }
-  };
-
-  const clearDetail = () => {
-    setSelected(null);
-    setExplanation("");
-    setExplainError("");
-  };
-
-  const formatTime = (iso: string) => {
+  // 정각 기준 시간 표시
+  const formatHour = (iso: string) => {
     return new Date(iso).toLocaleString("ko-KR", {
       month: "numeric",
       day: "numeric",
       hour: "2-digit",
       minute: "2-digit",
-    });
+    }) + " 기준";
   };
 
-  // 설명 텍스트 볼드 마크다운 렌더링
+  // 볼드 마크다운 렌더링
   const renderExplanation = (text: string) => {
     const parts = text.split(/(\*\*[^*]+\*\*)/g);
     return parts.map((part, i) => {
@@ -200,6 +127,8 @@ export default function IssuesClient() {
     });
   };
 
+  const clearDetail = () => setSelected(null);
+
   return (
     <div className="issue-shell">
       {/* 헤더 */}
@@ -208,33 +137,11 @@ export default function IssuesClient() {
           <h2>🔥 실시간 이슈</h2>
           <small>
             {collectedAt
-              ? `최근 수집: ${formatTime(collectedAt)}`
+              ? formatHour(collectedAt)
               : "데이터 수집 중..."}
           </small>
         </div>
-        <button
-          className="issue-refresh-btn"
-          onClick={handleRefresh}
-          disabled={refreshing}
-          type="button"
-        >
-          {refreshing ? (
-            <>
-              <DotPulse />
-              수집 중...
-            </>
-          ) : (
-            <>↻ 지금 수집</>
-          )}
-        </button>
       </div>
-
-      {/* 수집 결과 메시지 */}
-      {crawlMsg && (
-        <div className={`issue-crawl-msg${crawlMsg.startsWith("⚠️") ? " is-error" : ""}`}>
-          {crawlMsg}
-        </div>
-      )}
 
       {/* API 에러 메시지 */}
       {fetchError && !loading && (
@@ -285,7 +192,7 @@ export default function IssuesClient() {
             </div>
           ) : issues.length === 0 ? (
             <p style={{ color: "var(--text-3)", textAlign: "center", padding: "2rem 0", fontSize: "0.84rem" }}>
-              이슈 데이터가 없습니다. 위 버튼으로 수동 수집하세요.
+              이슈 데이터가 없습니다.
             </p>
           ) : (
             <div className="issue-grid-2col">
@@ -293,7 +200,7 @@ export default function IssuesClient() {
                 <button
                   key={issue.id}
                   className={`issue-grid-item${selected?.id === issue.id ? " active" : ""}`}
-                  onClick={() => void handleItemClick(issue)}
+                  onClick={() => setSelected(issue)}
                   type="button"
                 >
                   <RankBadge rank={issue.rank} />
@@ -356,19 +263,11 @@ export default function IssuesClient() {
 
               <div className="issue-explain-section">
                 <p className="issue-explain-title">🤖 AI 이슈 분석</p>
-                {explaining ? (
-                  <div className="issue-explain-loading">
-                    <DotPulse />
-                    <span>분석 중... ({countdown}초)</span>
-                    <div className="issue-countdown-bar">
-                      <div className="issue-countdown-fill" style={{ width: `${(countdown / 30) * 100}%` }} />
-                    </div>
-                  </div>
-                ) : explainError ? (
-                  <div className="issue-no-openai">⚠️ {explainError}</div>
-                ) : explanation ? (
-                  <p className="issue-explain-text">{renderExplanation(explanation)}</p>
-                ) : null}
+                {selected.explanation ? (
+                  <p className="issue-explain-text">{renderExplanation(selected.explanation)}</p>
+                ) : (
+                  <div className="issue-no-openai">분석 정보가 없습니다.</div>
+                )}
               </div>
             </div>
           )}

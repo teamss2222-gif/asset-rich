@@ -37,6 +37,7 @@ export type IssueRecord = {
     videoId?: string;
     thumbnail?: string;
   };
+  explanation: string;
   collectedAt: string;
 };
 
@@ -270,6 +271,59 @@ async function fetchDaumNews(): Promise<RawItem[]> {
 }
 
 // ──────────────────────────────────────────────────
+// Azure OpenAI 헬퍼
+// ──────────────────────────────────────────────────
+
+function buildAzureUrl(): string | null {
+  const apiKey = process.env.AZURE_OPENAI_API_KEY?.split(/[\r\n]/)[0].replace(/\s.*$/, "").trim();
+  const endpointRaw = (process.env.AZURE_OPENAI_ENDPOINT ?? "").split(/[\r\n]/)[0].trim();
+  const deployment = (process.env.AZURE_OPENAI_DEPLOYMENT_NAME ?? "").split(/[\r\n]/)[0].trim();
+  const apiVersion = (process.env.AZURE_OPENAI_API_VERSION ?? "2025-04-01-preview").split(/[\r\n]/)[0].trim();
+  if (!apiKey || !endpointRaw || !deployment) return null;
+  const origin = new URL(endpointRaw).origin;
+  return `${origin}/openai/deployments/${encodeURIComponent(deployment)}/chat/completions?api-version=${encodeURIComponent(apiVersion)}`;
+}
+
+// 10개 키워드를 LLM 1회 호출로 전부 설명 생성
+async function batchExplainIssues(keywords: string[]): Promise<Record<string, string>> {
+  const apiKey = process.env.AZURE_OPENAI_API_KEY?.split(/[\r\n]/)[0].replace(/\s.*$/, "").trim();
+  const chatUrl = buildAzureUrl();
+  if (!apiKey || !chatUrl || keywords.length === 0) return {};
+
+  const now = new Date().toLocaleDateString("ko-KR", {
+    year: "numeric", month: "long", day: "numeric", weekday: "long",
+  });
+  const list = keywords.map((k, i) => `${i + 1}. ${k}`).join("\n");
+
+  try {
+    const res = await fetch(chatUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "api-key": apiKey },
+      body: JSON.stringify({
+        messages: [
+          {
+            role: "system",
+            content: `오늘은 ${now}입니다. 한국 실시간 화제 키워드 분석가입니다. 아래 키워드 각각이 지금 왜 화제인지 각각 2~3문장으로 설명하세요. 반드시 순수 JSON만 반환하세요: {"키워드":"설명", ...}`,
+          },
+          { role: "user", content: list },
+        ],
+        max_completion_tokens: 6000,
+        response_format: { type: "json_object" },
+      }),
+      signal: AbortSignal.timeout(50000),
+    });
+    if (!res.ok) return {};
+    const data = await res.json() as { choices?: Array<{ message: { content: string } }> };
+    const content = data.choices?.[0]?.message?.content ?? "{}";
+    const parsed = JSON.parse(content) as Record<string, string>;
+    return typeof parsed === "object" && parsed !== null ? parsed : {};
+  } catch (e) {
+    console.error("[batchExplainIssues] error:", e);
+    return {};
+  }
+}
+
+// ──────────────────────────────────────────────────
 // Azure OpenAI 이슈 생성
 // ──────────────────────────────────────────────────
 
@@ -469,6 +523,7 @@ export function computeRanking(
       genderWeights,
       ageWeights,
       meta: data.meta,
+      explanation: "",
     };
   });
 }
@@ -508,11 +563,11 @@ export async function saveIssues(
   const pool = getPool();
   const now = new Date();
 
-  // 기존 데이터 전부 삭제 후 단일 bulk INSERT (루프 20회 → 쿼리 2회)
+  // 기존 데이터 전부 삭제 후 단일 bulk INSERT
   const placeholders = issues
     .map((_, i) => {
-      const b = i * 8;
-      return `($${b + 1}, $${b + 2}, $${b + 3}::jsonb, $${b + 4}, $${b + 5}::jsonb, $${b + 6}::jsonb, $${b + 7}::jsonb, $${b + 8})`;
+      const b = i * 9;
+      return `($${b + 1}, $${b + 2}, $${b + 3}::jsonb, $${b + 4}, $${b + 5}::jsonb, $${b + 6}::jsonb, $${b + 7}::jsonb, $${b + 8}, $${b + 9})`;
     })
     .join(", ");
 
@@ -524,13 +579,14 @@ export async function saveIssues(
     JSON.stringify(issue.genderWeights),
     JSON.stringify(issue.ageWeights),
     JSON.stringify(issue.meta),
+    issue.explanation ?? "",
     now,
   ]);
 
   await pool.query(`DELETE FROM realtime_issues`);
   await pool.query(
     `INSERT INTO realtime_issues
-       (rank, keyword, source_ranks, score, gender_weights, age_weights, meta, collected_at)
+       (rank, keyword, source_ranks, score, gender_weights, age_weights, meta, explanation, collected_at)
      VALUES ${placeholders}`,
     values,
   );
@@ -548,9 +604,10 @@ export async function getLatestIssues(): Promise<IssueRecord[]> {
     gender_weights: GenderWeights;
     age_weights: AgeWeights;
     meta: IssueRecord["meta"];
+    explanation: string;
     collected_at: Date;
   }>(
-    `SELECT id, rank, keyword, source_ranks, score, gender_weights, age_weights, meta, collected_at
+    `SELECT id, rank, keyword, source_ranks, score, gender_weights, age_weights, meta, explanation, collected_at
      FROM realtime_issues
      ORDER BY rank ASC
      LIMIT 10`,
@@ -565,6 +622,7 @@ export async function getLatestIssues(): Promise<IssueRecord[]> {
     genderWeights: row.gender_weights,
     ageWeights: row.age_weights,
     meta: row.meta,
+    explanation: row.explanation ?? "",
     collectedAt: row.collected_at.toISOString(),
   }));
 }
@@ -586,9 +644,17 @@ export async function collectAndSave(): Promise<{
       genderWeights: item.genderWeights,
       ageWeights: item.ageWeights,
       meta: item.meta,
+      explanation: "",
     }));
-    await saveIssues(ranked);
-    return { count: ranked.length, sources: ["ai"] };
+    // 10개 일괄 설명 생성 (1회 LLM 호출)
+    const keywords = ranked.map((r) => r.keyword);
+    const explanations = await batchExplainIssues(keywords);
+    const rankedWithExp = ranked.map((r) => ({
+      ...r,
+      explanation: explanations[r.keyword] ?? "",
+    }));
+    await saveIssues(rankedWithExp);
+    return { count: rankedWithExp.length, sources: ["ai"] };
   }
 
   // 폴백: 다중 소스 실시간 수집 (Google Daily + Realtime + 연합뉴스 + 다음 + YouTube)
@@ -618,8 +684,16 @@ export async function collectAndSave(): Promise<{
   if (daum.length > 0) sources.push("daum");
   if (sources.length === 0) sources.push("fallback");
 
-  const ranked = computeRanking(google, youtube, naver, daum);
-  if (ranked.length === 0) return { count: 0, sources };
+  const rawRanked = computeRanking(google, youtube, naver, daum);
+  if (rawRanked.length === 0) return { count: 0, sources };
+
+  // 10개 일괄 설명 생성 (1회 LLM 호출)
+  const keywords = rawRanked.map((r) => r.keyword);
+  const explanations = await batchExplainIssues(keywords);
+  const ranked = rawRanked.map((r) => ({
+    ...r,
+    explanation: explanations[r.keyword] ?? "",
+  }));
 
   await saveIssues(ranked);
   return { count: ranked.length, sources };

@@ -259,8 +259,13 @@ export async function ensureIssuesTable() {
       gender_weights JSONB NOT NULL DEFAULT '{"male":0.5,"female":0.5}',
       age_weights JSONB NOT NULL DEFAULT '{"10":0.2,"20":0.2,"30":0.2,"40":0.2,"50":0.1,"60":0.1}',
       meta JSONB DEFAULT '{}',
+      explanation TEXT DEFAULT '',
       collected_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
     );
+  `);
+  // 기존 DB 마이그레이션: explanation 컬럼이 없으면 추가
+  await pool.query(`
+    ALTER TABLE realtime_issues ADD COLUMN IF NOT EXISTS explanation TEXT DEFAULT '';
   `);
   await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_ri_collected_at
