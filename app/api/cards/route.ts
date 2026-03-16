@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
     });
 
     const cards = await getSavedCards();
-    const saved = cards.find(c => (c as { gorilla_id: number }).gorilla_id === gorillaId);
+    const saved = cards.find(c => (c as unknown as { gorilla_id: number }).gorilla_id === gorillaId);
     return apiOk(saved ?? {}, { message: "카드 저장 완료" });
   } catch (err) {
     return apiError({
