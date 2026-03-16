@@ -362,6 +362,14 @@ export default function IssuesClient() {
                   <span className="issue-modal-source-item">검색량 {selected.meta.traffic}</span>
                 )}
               </div>
+              <div className="issue-score-breakdown">
+                <span className="issue-score-label">순위 산정 방식</span>
+                <span className="issue-score-weight weight-google">구글 35%</span>
+                <span className="issue-score-weight weight-youtube">유튜브 25%</span>
+                <span className="issue-score-weight weight-naver">네이버 25%</span>
+                <span className="issue-score-weight weight-daum">다음 15%</span>
+                <span className="issue-score-total">종합점수 {selected.score.toFixed(3)}</span>
+              </div>
 
               <div className="issue-explain-section">
                 <p className="issue-explain-title">🤖 AI 이슈 분석</p>

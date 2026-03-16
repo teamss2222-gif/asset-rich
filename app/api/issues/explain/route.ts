@@ -1,7 +1,13 @@
 ﻿import { NextRequest } from "next/server";
 import { apiOk, apiError } from "@/lib/api-response";
 
-const SYSTEM_PROMPT = `한국 뉴스 요약 전문가. 키워드가 왜 지금 이슈인지 2문장으로만 답하라. 한국어.`;
+const SYSTEM_PROMPT = `당신은 한국 실시간 뉴스 요약 전문가입니다.
+키워드가 오늘 왜 화제인지, 아래 형식으로 정확히 답하세요:
+
+[한 줄 요약]: (핵심 사건 또는 이유를 15자 이내로)
+[배경]: (2~3문장. 구체적 사실과 날짜/인물/사건 중심으로)
+
+한국어로만 답하고, 추측이나 일반론은 쓰지 마세요.`;
 function generateFallbackExplanation(keyword: string): string {
   return [
     `**이슈 배경**`,

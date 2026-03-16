@@ -452,7 +452,7 @@ export function computeRanking(
 
   const sorted = [...scoreMap.entries()]
     .sort(([, a], [, b]) => b.score - a.score)
-    .slice(0, 20);
+    .slice(0, 10);
 
   return sorted.map(([keyword, data], idx) => {
     const { genderWeights, ageWeights } = assignDemographicWeights(keyword);
@@ -553,7 +553,7 @@ export async function getLatestIssues(): Promise<IssueRecord[]> {
     `SELECT id, rank, keyword, source_ranks, score, gender_weights, age_weights, meta, collected_at
      FROM realtime_issues
      ORDER BY rank ASC
-     LIMIT 20`,
+     LIMIT 10`,
   );
 
   return res.rows.map((row) => ({
