@@ -197,16 +197,17 @@ async function fetchGoogleTrendsRealtime(): Promise<RawItem[]> {
   }
 }
 
-// 연합뉴스 + YTN 뉴스 RSS → 국내 화제 키워드
-async function fetchNaverNews(): Promise<RawItem[]> {
+// 연합뉴스 RSS → 국내 화제 키워드 + 원문 헤드라인
+async function fetchNaverNews(): Promise<{ items: RawItem[]; headlines: string[] }> {
   const RSS_URLS = [
-    "https://www.yna.co.kr/rss/all.xml",         // 연합뉴스 전체
-    "https://www.yna.co.kr/rss/society.xml",     // 연합뉴스 사회
-    "https://www.yna.co.kr/rss/culture.xml",     // 연합뉴스 문화
-    "https://www.yna.co.kr/rss/entertainment.xml", // 연합뉴스 연예
+    "https://www.yna.co.kr/rss/all.xml",
+    "https://www.yna.co.kr/rss/society.xml",
+    "https://www.yna.co.kr/rss/culture.xml",
+    "https://www.yna.co.kr/rss/entertainment.xml",
   ];
 
   const allItems: RawItem[] = [];
+  const allHeadlines: string[] = [];
   await Promise.allSettled(
     RSS_URLS.map(async (url) => {
       try {
@@ -221,25 +222,30 @@ async function fetchNaverNews(): Promise<RawItem[]> {
         $("item").each((_, el) => {
           const raw = $(el).find("title").first().text().trim();
           const keyword = extractKeyword(raw);
-          if (keyword.length >= 2) allItems.push({ keyword });
+          if (keyword.length >= 2) {
+            allItems.push({ keyword });
+            allHeadlines.push(raw);
+          }
         });
       } catch { /* skip */ }
     }),
   );
 
-  if (allItems.length < 5) return generateNaverFallback();
+  if (allItems.length < 5) return { items: generateNaverFallback(), headlines: [] };
 
   const seen = new Set<string>();
-  return allItems
+  const items = allItems
     .filter((it) => !seen.has(it.keyword) && seen.add(it.keyword))
     .slice(0, 20)
     .map((it, i) => ({ ...it, naverRank: i + 1 }));
+  return { items, headlines: allHeadlines };
 }
 
 // 다음 뉴스 RSS (사회·연예·경제·정치·문화 5개 섹션)
-async function fetchDaumNews(): Promise<RawItem[]> {
+async function fetchDaumNews(): Promise<{ items: RawItem[]; headlines: string[] }> {
   const SECTIONS = ["society", "entertain", "economic", "politics", "culture"];
   const allItems: RawItem[] = [];
+  const allHeadlines: string[] = [];
 
   await Promise.allSettled(
     SECTIONS.map(async (sec) => {
@@ -255,19 +261,23 @@ async function fetchDaumNews(): Promise<RawItem[]> {
         $("item").each((_, el) => {
           const raw = $(el).find("title").first().text().trim();
           const keyword = extractKeyword(raw);
-          if (keyword.length >= 2) allItems.push({ keyword });
+          if (keyword.length >= 2) {
+            allItems.push({ keyword });
+            allHeadlines.push(raw);
+          }
         });
       } catch { /* skip */ }
     }),
   );
 
-  if (allItems.length === 0) return [];
+  if (allItems.length === 0) return { items: [], headlines: [] };
 
   const seen = new Set<string>();
-  return allItems
+  const items = allItems
     .filter((it) => !seen.has(it.keyword) && seen.add(it.keyword))
     .slice(0, 20)
     .map((it, i) => ({ ...it, daumRank: i + 1 }));
+  return { items, headlines: allHeadlines };
 }
 
 // ──────────────────────────────────────────────────
@@ -285,7 +295,7 @@ function buildAzureUrl(): string | null {
 }
 
 // 10개 키워드를 LLM 1회 호출로 전부 설명 생성
-async function batchExplainIssues(keywords: string[]): Promise<Record<string, string>> {
+async function batchExplainIssues(keywords: string[], newsHeadlines: string[] = []): Promise<Record<string, string>> {
   const apiKey = process.env.AZURE_OPENAI_API_KEY?.split(/[\r\n]/)[0].replace(/\s.*$/, "").trim();
   const chatUrl = buildAzureUrl();
   if (!apiKey || !chatUrl || keywords.length === 0) return {};
@@ -295,6 +305,11 @@ async function batchExplainIssues(keywords: string[]): Promise<Record<string, st
   });
   const list = keywords.map((k, i) => `${i + 1}. ${k}`).join("\n");
 
+  // 실제 수집한 뉴스 헤드라인을 컨텍스트로 제공
+  const contextBlock = newsHeadlines.length > 0
+    ? `\n\n[오늘 실제 수집 뉴스 헤드라인 ${newsHeadlines.length}건]\n${newsHeadlines.slice(0, 60).map((h) => `• ${h}`).join("\n")}`
+    : "";
+
   try {
     const res = await fetch(chatUrl, {
       method: "POST",
@@ -303,9 +318,9 @@ async function batchExplainIssues(keywords: string[]): Promise<Record<string, st
         messages: [
           {
             role: "system",
-            content: `오늘은 ${now}입니다. 한국 실시간 화제 키워드 분석가입니다. 아래 키워드 각각이 지금 왜 화제인지 각각 2~3문장으로 설명하세요. 반드시 순수 JSON만 반환하세요: {"키워드":"설명", ...}`,
+            content: `오늘은 ${now}입니다. 한국 실시간 화제 키워드 분석가입니다.\n아래 뉴스 헤드라인을 참고해, 각 키워드가 지금 왜 화제인지 2~3문장으로 설명하세요.\n헤드라인에 직접 없어도 LLM 훈련 지식으로 유추해 설명하세요. "기사 검색 필요"라고 돌리지 말고 알고 있는 범위에서 모두 설명하세요.\n반드시 순수 JSON만 반환: {"키워드":"설명", ...}`,
           },
-          { role: "user", content: list },
+          { role: "user", content: `${contextBlock}\n\n설명할 키워드 대상:\n${list}` },
         ],
         max_completion_tokens: 6000,
         response_format: { type: "json_object" },
@@ -646,9 +661,12 @@ export async function collectAndSave(): Promise<{
       meta: item.meta,
       explanation: "",
     }));
-    // 10개 일괄 설명 생성 (1회 LLM 호출)
+    // 10개 일괄 설명 생성 (1회 LLM 호출) - AI가 생성한 reason을 컨텍스트로 활용
     const keywords = ranked.map((r) => r.keyword);
-    const explanations = await batchExplainIssues(keywords);
+    const aiReasonCtx = ranked
+      .filter((r) => r.meta.traffic)
+      .map((r) => `${r.keyword}: ${r.meta.traffic}`);
+    const explanations = await batchExplainIssues(keywords, aiReasonCtx);
     const rankedWithExp = ranked.map((r) => ({
       ...r,
       explanation: explanations[r.keyword] ?? "",
@@ -658,13 +676,21 @@ export async function collectAndSave(): Promise<{
   }
 
   // 폴백: 다중 소스 실시간 수집 (Google Daily + Realtime + 연합뉴스 + 다음 + YouTube)
-  const [googleDaily, googleRT, youtube, naver, daum] = await Promise.all([
+  const [googleDaily, googleRT, youtube, naverResult, daumResult] = await Promise.all([
     fetchGoogleTrends(),
     fetchGoogleTrendsRealtime(),
     fetchYoutubeTrending(),
     fetchNaverNews(),
     fetchDaumNews(),
   ]);
+
+  const naver = naverResult.items;
+  const daum = daumResult.items;
+  // 실제 뉴스 헤드라인 수집 (연합뉴스 + 다음 원문 제목)
+  const newsHeadlines = [
+    ...naverResult.headlines,
+    ...daumResult.headlines,
+  ].filter((h) => h.length > 4);
 
   // Google 일별 + 실시간 병합 (중복 제거, 일별 우선)
   const googleSeen = new Set<string>();
@@ -687,9 +713,9 @@ export async function collectAndSave(): Promise<{
   const rawRanked = computeRanking(google, youtube, naver, daum);
   if (rawRanked.length === 0) return { count: 0, sources };
 
-  // 10개 일괄 설명 생성 (1회 LLM 호출)
+  // 10개 일괄 설명 생성 (1회 LLM 호출) — 실제 뉴스 헤드라인 콘텍스트 전달
   const keywords = rawRanked.map((r) => r.keyword);
-  const explanations = await batchExplainIssues(keywords);
+  const explanations = await batchExplainIssues(keywords, newsHeadlines);
   const ranked = rawRanked.map((r) => ({
     ...r,
     explanation: explanations[r.keyword] ?? "",
