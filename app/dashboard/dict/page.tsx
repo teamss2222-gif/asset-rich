@@ -1,353 +1,139 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { GOSA_DATA, GosaEntry, SODAM_DATA, SodamEntry } from "../../../lib/dict-data";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { requestApi } from "../../../lib/http-client";
 
-type Tab = "en-ko" | "ko-en" | "gosa" | "sodam";
-
-// ── 번역 결과 타입 ──
-interface TransResult {
-  translation: string;
-  definitions: DictEntry[];
-  error?: string;
-}
-interface DictEntry {
+type Entry = {
   word: string;
-  phonetics?: { text?: string }[];
-  meanings?: {
-    partOfSpeech: string;
-    definitions: { definition: string; example?: string }[];
-  }[];
-}
+  pos: string;
+  definition: string;
+  example: string;
+  source: "krdict" | "local";
+};
 
-const TABS: { key: Tab; label: string; emoji: string }[] = [
-  { key: "en-ko", label: "영→한", emoji: "🇺🇸" },
-  { key: "ko-en", label: "한→영", emoji: "🇰🇷" },
-  { key: "gosa", label: "고사성어", emoji: "📜" },
-  { key: "sodam", label: "속담", emoji: "💬" },
-];
+const CHOSEONG = ["ㄱ","ㄴ","ㄷ","ㄹ","ㅁ","ㅂ","ㅅ","ㅇ","ㅈ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"];
 
-// ── 번역 탭 컴포넌트 ──
-function TranslateTab({ dir }: { dir: "en|ko" | "ko|en" }) {
+export default function DictionaryPage() {
   const [query, setQuery] = useState("");
-  const [result, setResult] = useState<TransResult | null>(null);
+  const [cho, setCho] = useState("ㄱ");
+  const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isEnKo = dir === "en|ko";
+  const [source, setSource] = useState<"krdict" | "local" | null>(null);
+  const [hasApiKey, setHasApiKey] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  function clear() {
-    setQuery("");
-    setResult(null);
-  }
-
-  async function search(q: string) {
-    if (!q.trim()) { setResult(null); return; }
+  const fetchWords = useCallback(async (q: string, c: string) => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/dict/translate?q=${encodeURIComponent(q.trim())}&dir=${dir}`);
-      const json = await res.json();
-      if (!res.ok) {
-        setResult({ translation: "", definitions: [], error: json.message ?? "오류 발생" });
-      } else {
-        setResult({ translation: json.data?.translation ?? "", definitions: json.data?.definitions ?? [] });
-      }
+      const params = q ? `q=${encodeURIComponent(q)}` : `cho=${encodeURIComponent(c)}`;
+      const res = await requestApi<{ entries: Entry[]; source: string; hasApiKey: boolean }>(
+        `/api/dictionary?${params}`
+      );
+      const data = res.data;
+      setEntries(data.entries);
+      setSource(data.source as "krdict" | "local");
+      setHasApiKey(data.hasApiKey);
     } catch {
-      setResult({ translation: "", definitions: [], error: "네트워크 오류" });
+      setEntries([]);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-  }
-
-  function handleChange(v: string) {
-    setQuery(v);
-    if (timerRef.current) clearTimeout(timerRef.current);
-    if (!v.trim()) { setResult(null); return; }
-    timerRef.current = setTimeout(() => search(v), 600);
-  }
-
-  const phonetic = result?.definitions?.[0]?.phonetics?.find((p) => p.text)?.text ?? "";
-
-  return (
-    <div className="dict-translate-wrap">
-      <div className="dict-search-bar">
-        <input
-          className="dict-search-input"
-          placeholder={isEnKo ? "영어 단어나 문장을 입력하세요" : "한국어 단어나 문장을 입력하세요"}
-          value={query}
-          onChange={(e) => handleChange(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") { if (timerRef.current) clearTimeout(timerRef.current); search(query); } }}
-          autoFocus
-        />
-        {query && <button className="dict-clear-btn" onClick={clear}>✕</button>}
-        <button className="dict-search-btn" onClick={() => { if (timerRef.current) clearTimeout(timerRef.current); search(query); }}>검색</button>
-      </div>
-
-      {loading && <div className="dict-loading">번역 중…</div>}
-
-      {!loading && result && (
-        <div className="dict-result-card">
-          {result.error ? (
-            <p className="dict-error">{result.error}</p>
-          ) : (
-            <>
-              <div className="dict-query-row">
-                <span className="dict-query-word">{query.trim()}</span>
-                {phonetic && <span className="dict-phonetic">{phonetic}</span>}
-              </div>
-
-              <div className="dict-translation-box">
-                <span className="dict-translation-arrow">{isEnKo ? "🇰🇷" : "🇺🇸"}</span>
-                <span className="dict-translation-text">{result.translation}</span>
-              </div>
-
-              {/* 영한일 때 영어 사전 정의 표시 */}
-              {isEnKo && result.definitions.length > 0 && (
-                <div className="dict-definitions">
-                  {result.definitions[0].meanings?.slice(0, 3).map((m, i) => (
-                    <div key={i} className="dict-meaning-group">
-                      <span className="dict-pos">{m.partOfSpeech}</span>
-                      {m.definitions.slice(0, 2).map((d, j) => (
-                        <div key={j} className="dict-def-item">
-                          <p className="dict-def-text">{d.definition}</p>
-                          {d.example && <p className="dict-def-example">"{d.example}"</p>}
-                        </div>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      )}
-
-      {!loading && !result && !query && (
-        <div className="dict-hint">
-          {isEnKo
-            ? "영어 단어, 구문, 또는 문장을 입력하면 한국어 번역과 영영 사전 뜻풀이를 보여드려요."
-            : "한국어 단어, 구문, 또는 문장을 입력하면 영어 번역을 보여드려요."}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── 고사성어 탭 ──
-function GosaTab() {
-  const [query, setQuery] = useState("");
-  const [expanded, setExpanded] = useState<number | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  const q = query.trim().toLowerCase();
-  const filtered = useMemo(() => {
-    if (!q) return [];
-    return GOSA_DATA.filter((g) =>
-      g.word.includes(q) ||
-      g.hanja.includes(q) ||
-      g.meaning.includes(q) ||
-      g.english.toLowerCase().includes(q)
-    );
-  }, [q]);
-
-  return (
-    <div>
-      <div className="dict-search-bar">
-        <input
-          ref={inputRef}
-          className="dict-search-input"
-          placeholder="고사성어, 한자, 뜻으로 검색…"
-          value={query}
-          autoFocus
-          onChange={(e) => { setQuery(e.target.value); setExpanded(null); }}
-        />
-        {query && <button className="dict-clear-btn" onClick={() => { setQuery(""); setExpanded(null); inputRef.current?.focus(); }}>✕</button>}
-      </div>
-
-      {!q && (
-        <div className="dict-empty" style={{ marginTop: "2.5rem" }}>
-          검색어를 입력하면 결과가 표시됩니다.
-        </div>
-      )}
-      {q && filtered.length === 0 && <div className="dict-empty" style={{ marginTop: "2.5rem" }}>검색 결과가 없어요.</div>}
-      {q && filtered.length > 0 && (
-        <>
-          <p className="dict-count">{filtered.length}개</p>
-          <div className="dict-card-list">
-            {filtered.map((g, i) => (
-              <GosaCard key={g.word} entry={g} isOpen={expanded === i} onToggle={() => setExpanded(expanded === i ? null : i)} />
-            ))}
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
-function GosaCard({ entry, isOpen, onToggle }: { entry: GosaEntry; isOpen: boolean; onToggle: () => void }) {
-  return (
-    <button className={`dict-card ${isOpen ? "open" : ""}`} onClick={onToggle}>
-      <div className="dict-card-main">
-        <div className="dict-card-left">
-          <span className="dict-gosa-word">{entry.word}</span>
-          <span className="dict-gosa-hanja">{entry.hanja}</span>
-        </div>
-        <div className="dict-card-right">
-          <span className="dict-card-summary">{entry.meaning.slice(0, 30)}{entry.meaning.length > 30 ? "…" : ""}</span>
-          <span className={`dict-card-arrow ${isOpen ? "open" : ""}`}>›</span>
-        </div>
-      </div>
-      {isOpen && (
-        <div className="dict-card-body">
-          <p className="dict-card-meaning">{entry.meaning}</p>
-          <div className="dict-card-english">
-            <span className="dict-card-en-label">🇺🇸</span>
-            <span>{entry.english}</span>
-          </div>
-          {entry.tags && (
-            <div className="dict-card-tags">
-              {entry.tags.map((t) => <span key={t} className="dict-tag-badge">{t}</span>)}
-            </div>
-          )}
-        </div>
-      )}
-    </button>
-  );
-}
-
-// ── 속담 탭 ──
-function SodamTab() {
-  const [query, setQuery] = useState("");
-  const [expanded, setExpanded] = useState<number | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  const q = query.trim().toLowerCase();
-  const filtered = useMemo(() => {
-    if (!q) return [];
-    return SODAM_DATA.filter((s) =>
-      s.sodam.includes(q) ||
-      s.meaning.includes(q) ||
-      s.english.toLowerCase().includes(q)
-    );
-  }, [q]);
-
-  return (
-    <div>
-      <div className="dict-search-bar">
-        <input
-          ref={inputRef}
-          className="dict-search-input"
-          placeholder="속담, 뜻으로 검색…"
-          value={query}
-          autoFocus
-          onChange={(e) => { setQuery(e.target.value); setExpanded(null); }}
-        />
-        {query && <button className="dict-clear-btn" onClick={() => { setQuery(""); setExpanded(null); inputRef.current?.focus(); }}>✕</button>}
-      </div>
-
-      {!q && (
-        <div className="dict-empty" style={{ marginTop: "2.5rem" }}>
-          검색어를 입력하면 결과가 표시됩니다.
-        </div>
-      )}
-      {q && filtered.length === 0 && <div className="dict-empty" style={{ marginTop: "2.5rem" }}>검색 결과가 없어요.</div>}
-      {q && filtered.length > 0 && (
-        <>
-          <p className="dict-count">{filtered.length}개</p>
-          <div className="dict-card-list">
-            {filtered.map((s, i) => (
-              <SodamCard key={s.sodam} entry={s} isOpen={expanded === i} onToggle={() => setExpanded(expanded === i ? null : i)} />
-            ))}
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
-function SodamCard({ entry, isOpen, onToggle }: { entry: SodamEntry; isOpen: boolean; onToggle: () => void }) {
-  return (
-    <button className={`dict-card ${isOpen ? "open" : ""}`} onClick={onToggle}>
-      <div className="dict-card-main">
-        <div className="dict-card-left" style={{ flex: 1 }}>
-          <span className="dict-sodam-text">{entry.sodam}</span>
-        </div>
-        <span className={`dict-card-arrow ${isOpen ? "open" : ""}`}>›</span>
-      </div>
-      {isOpen && (
-        <div className="dict-card-body">
-          <p className="dict-card-meaning">{entry.meaning}</p>
-          <div className="dict-card-english">
-            <span className="dict-card-en-label">🇺🇸</span>
-            <span>{entry.english}</span>
-          </div>
-          {entry.tags && (
-            <div className="dict-card-tags">
-              {entry.tags.map((t) => <span key={t} className="dict-tag-badge">{t}</span>)}
-            </div>
-          )}
-        </div>
-      )}
-    </button>
-  );
-}
-
-// ── 메인 페이지 ──
-export default function DictPage() {
-  const [tab, setTab] = useState<Tab>("en-ko");
-  const [dailyGosa, setDailyGosa] = useState<GosaEntry | null>(null);
-  const [dailySodam, setDailySodam] = useState<SodamEntry | null>(null);
-
-  useEffect(() => {
-    // 오늘 날짜 기반 오늘의 단어
-    const dayIdx = Math.floor(Date.now() / 86400000);
-    setDailyGosa(GOSA_DATA[dayIdx % GOSA_DATA.length]);
-    setDailySodam(SODAM_DATA[dayIdx % SODAM_DATA.length]);
   }, []);
+
+  // 초성 탭 변경
+  useEffect(() => {
+    if (query) return;
+    fetchWords("", cho);
+  }, [cho, fetchWords, query]);
+
+  // 검색어 디바운스
+  const handleInput = (val: string) => {
+    setQuery(val);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      if (val.trim()) {
+        fetchWords(val.trim(), "");
+      } else {
+        fetchWords("", cho);
+      }
+    }, 350);
+  };
+
+  const clearSearch = () => {
+    setQuery("");
+    fetchWords("", cho);
+  };
 
   return (
     <div className="dict-page">
-      {/* 헤더 */}
       <div className="dict-header">
-        <h1 className="dict-title">📖 사전</h1>
-        <p className="dict-subtitle">한영 · 영한 · 고사성어 · 속담</p>
+        <h1 className="dict-title">📚 초등 국어사전</h1>
+        {hasApiKey ? (
+          <span className="dict-api-badge api-live">국립국어원 연동</span>
+        ) : (
+          <span className="dict-api-badge api-local">내장 사전</span>
+        )}
       </div>
 
-      {/* 오늘의 단어 카드 */}
-      {dailyGosa && dailySodam && (
-        <div className="dict-daily-row">
-          <div className="dict-daily-card">
-            <span className="dict-daily-label">📜 오늘의 고사성어</span>
-            <span className="dict-daily-word">{dailyGosa.word}</span>
-            <span className="dict-daily-hanja">{dailyGosa.hanja}</span>
-            <span className="dict-daily-meaning">{dailyGosa.meaning}</span>
-          </div>
-          <div className="dict-daily-card sodam">
-            <span className="dict-daily-label">💬 오늘의 속담</span>
-            <span className="dict-daily-sodam">{dailySodam.sodam}</span>
-            <span className="dict-daily-meaning">{dailySodam.meaning}</span>
-          </div>
+      <div className="dict-search-row">
+        <div className="dict-search-wrap">
+          <input
+            className="dict-search-input"
+            type="text"
+            placeholder="낱말을 입력하세요..."
+            value={query}
+            onChange={(e) => handleInput(e.target.value)}
+          />
+          {query && (
+            <button className="dict-search-clear" onClick={clearSearch} aria-label="지우기">×</button>
+          )}
+        </div>
+      </div>
+
+      {!query && (
+        <div className="dict-tabs">
+          {CHOSEONG.map((c) => (
+            <button
+              key={c}
+              className={`dict-tab-btn${cho === c ? " active" : ""}`}
+              onClick={() => { setCho(c); }}
+            >
+              {c}
+            </button>
+          ))}
         </div>
       )}
 
-      {/* 탭 바 */}
-      <div className="dict-tabs">
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            className={`dict-tab-btn ${tab === t.key ? "active" : ""}`}
-            onClick={() => setTab(t.key)}
-          >
-            <span>{t.emoji}</span>
-            <span>{t.label}</span>
-          </button>
-        ))}
-      </div>
-
-      {/* 탭 콘텐츠 */}
-      <div className="dict-tab-content">
-        {tab === "en-ko" && <TranslateTab dir="en|ko" />}
-        {tab === "ko-en" && <TranslateTab dir="ko|en" />}
-        {tab === "gosa" && <GosaTab />}
-        {tab === "sodam" && <SodamTab />}
+      <div className="dict-list">
+        {loading ? (
+          <div className="dict-loading">
+            <span className="dict-spinner" />
+            검색 중...
+          </div>
+        ) : entries.length === 0 ? (
+          <div className="dict-empty">
+            <span className="dict-empty-icon">🔍</span>
+            <p>찾는 낱말이 없어요.</p>
+            <p className="dict-empty-sub">다른 낱말로 검색해 보세요.</p>
+          </div>
+        ) : (
+          <>
+            <p className="dict-count">총 <strong>{entries.length}</strong>개</p>
+            {entries.map((entry, i) => (
+              <div key={i} className="dict-card">
+                <div className="dict-card-top">
+                  <span className="dict-word">{entry.word}</span>
+                  <span className="dict-pos">{entry.pos}</span>
+                  {entry.source === "krdict" && <span className="dict-krdict-tag">국어원</span>}
+                </div>
+                <p className="dict-def">{entry.definition}</p>
+                {entry.example && (
+                  <p className="dict-ex"><span className="dict-ex-label">예)</span> {entry.example}</p>
+                )}
+              </div>
+            ))}
+          </>
+        )}
       </div>
     </div>
   );
