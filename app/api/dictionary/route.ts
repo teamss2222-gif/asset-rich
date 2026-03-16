@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { apiSuccess, apiError } from "../../../lib/api-response";
+import { apiOk } from "../../../lib/api-response";
 
 // 국립국어원 한국어기초사전 API
 // https://krdict.korean.go.kr/openApi/openApiInfo
@@ -132,7 +132,7 @@ export async function GET(req: NextRequest) {
         // KRDict는 XML 반환 — 파싱
         const entries = parseKRDictXML(text, q);
         if (entries.length > 0) {
-          return apiSuccess({ entries, source: "krdict", hasApiKey: true });
+          return apiOk({ entries, source: "krdict", hasApiKey: true });
         }
       }
     } catch {
@@ -163,7 +163,7 @@ export async function GET(req: NextRequest) {
     source: "local",
   }));
 
-  return apiSuccess({ entries, source: "local", hasApiKey: !!apiKey });
+  return apiOk({ entries, source: "local", hasApiKey: !!apiKey });
 }
 
 function getChoseong(ch: string): string {

@@ -26,9 +26,10 @@ export default function DictionaryPage() {
     setLoading(true);
     try {
       const params = q ? `q=${encodeURIComponent(q)}` : `cho=${encodeURIComponent(c)}`;
-      const data = await requestApi<{ entries: Entry[]; source: string; hasApiKey: boolean }>(
+      const res = await requestApi<{ entries: Entry[]; source: string; hasApiKey: boolean }>(
         `/api/dictionary?${params}`
       );
+      const data = res.data;
       setEntries(data.entries);
       setSource(data.source as "krdict" | "local");
       setHasApiKey(data.hasApiKey);
