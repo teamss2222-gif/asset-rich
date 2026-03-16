@@ -327,48 +327,31 @@ export default function IssuesClient() {
                 </button>
               </div>
 
-              <div className="issue-modal-sources">
+              <div className="issue-score-breakdown">
                 {selected.sourceRanks.google !== undefined && (
-                  <span className="issue-modal-source-item">
-                    <span className="issue-source-badge source-google">G</span>
-                    구글 {selected.sourceRanks.google}위
-                  </span>
+                  <span className="issue-source-badge source-google">G{selected.sourceRanks.google}</span>
                 )}
                 {selected.sourceRanks.youtube !== undefined && (
-                  <span className="issue-modal-source-item">
-                    <span className="issue-source-badge source-youtube">Y</span>
-                    유튜브 {selected.sourceRanks.youtube}위
-                  </span>
+                  <span className="issue-source-badge source-youtube">Y{selected.sourceRanks.youtube}</span>
                 )}
                 {selected.sourceRanks.naver !== undefined && (
-                  <span className="issue-modal-source-item">
-                    <span className="issue-source-badge source-naver">N</span>
-                    네이버 {selected.sourceRanks.naver}위
-                  </span>
+                  <span className="issue-source-badge source-naver">N{selected.sourceRanks.naver}</span>
                 )}
                 {selected.sourceRanks.daum !== undefined && (
-                  <span className="issue-modal-source-item">
-                    <span className="issue-source-badge source-daum">D</span>
-                    다음 {selected.sourceRanks.daum}위
-                  </span>
+                  <span className="issue-source-badge source-daum">D{selected.sourceRanks.daum}</span>
                 )}
                 {selected.sourceRanks.ai !== undefined && (
-                  <span className="issue-modal-source-item">
-                    <span className="issue-source-badge source-ai">AI</span>
-                    AI 생성
-                  </span>
+                  <span className="issue-source-badge source-ai">AI</span>
                 )}
+                <span className="issue-score-divider" />
+                <span className="issue-score-weight weight-google">G 35%</span>
+                <span className="issue-score-weight weight-youtube">Y 25%</span>
+                <span className="issue-score-weight weight-naver">N 25%</span>
+                <span className="issue-score-weight weight-daum">D 15%</span>
+                <span className="issue-score-total">점수 {selected.score.toFixed(3)}</span>
                 {selected.meta.traffic && (
-                  <span className="issue-modal-source-item">검색량 {selected.meta.traffic}</span>
+                  <span className="issue-score-total">검색량 {selected.meta.traffic}</span>
                 )}
-              </div>
-              <div className="issue-score-breakdown">
-                <span className="issue-score-label">순위 산정 방식</span>
-                <span className="issue-score-weight weight-google">구글 35%</span>
-                <span className="issue-score-weight weight-youtube">유튜브 25%</span>
-                <span className="issue-score-weight weight-naver">네이버 25%</span>
-                <span className="issue-score-weight weight-daum">다음 15%</span>
-                <span className="issue-score-total">종합점수 {selected.score.toFixed(3)}</span>
               </div>
 
               <div className="issue-explain-section">
