@@ -17,6 +17,10 @@ export function getPool() {
     global.__assetPool = new Pool({
       connectionString: getConnectionString(),
       ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
+      // 서버리스 환경 최적화: 커넥션 수 제한, 빠른 타임아웃
+      max: 3,
+      idleTimeoutMillis: 10000,
+      connectionTimeoutMillis: 5000,
     });
   }
 
