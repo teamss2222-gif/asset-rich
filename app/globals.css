@@ -1973,6 +1973,7 @@ body.bg-loggedin {
 }
 .sched-mission-title { flex: 1; font-size: 0.82rem; color: var(--text-1); font-weight: 500; }
 .sched-mission-reward { font-size: 0.72rem; color: var(--text-2); flex-shrink: 0; }
+.sched-mission-reward-total { font-weight: 700; color: #30d158; margin-left: 2px; }
 
 /* ── Mission quantity stepper ── */
 .sched-mission-qty {

@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
 
   // 주간 미션 누적 보상
   const { rows: missionRows } = await pool.query<{ week_total: string }>(`
-    SELECT COALESCE(SUM(t.reward_min), 0)::text AS week_total
+    SELECT COALESCE(SUM(t.reward_min * c.quantity), 0)::text AS week_total
     FROM schedule_mission_completions c
     JOIN schedule_mission_templates t ON t.id = c.template_id
     WHERE c.username = $1

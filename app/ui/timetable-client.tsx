@@ -631,7 +631,7 @@ export default function TimetableClient() {
     const qty = m?.quantity ?? 1;
     setMissions(prev => prev.map(m2 => m2.id === id ? { ...m2, completed } : m2));
     if (m) {
-      const delta = completed ? m.rewardMin : -m.rewardMin;
+      const delta = (completed ? m.rewardMin : -m.rewardMin) * qty;
       setWeekTotalReward(prev => prev + delta);
       setWeekMissionTotal(prev => prev + delta);
     }
@@ -643,8 +643,14 @@ export default function TimetableClient() {
   };
 
   const updateMissionQty = async (id: number, quantity: number) => {
-    setMissions(prev => prev.map(m => m.id === id ? { ...m, quantity } : m));
     const m = missions.find(m2 => m2.id === id);
+    setMissions(prev => prev.map(m2 => m2.id === id ? { ...m2, quantity } : m2));
+    // 이미 완료된 미션은 수량 변경 시 주간 보상 총계도 재계산
+    if (m?.completed) {
+      const delta = m.rewardMin * (quantity - m.quantity);
+      setWeekTotalReward(prev => prev + delta);
+      setWeekMissionTotal(prev => prev + delta);
+    }
     await requestApi("/api/schedule/missions", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -962,6 +968,9 @@ export default function TimetableClient() {
                             </label>
                             <span className={`sched-mission-reward${m.rewardMin < 0 ? " neg" : ""}`}>
                               {m.rewardMin >= 0 ? "🎁 +" : "⚠️ "}{m.rewardMin}분
+                              {m.completed && m.quantity > 1 && (
+                                <span className="sched-mission-reward-total"> = {m.rewardMin >= 0 ? "+" : ""}{m.rewardMin * m.quantity}분</span>
+                              )}
                             </span>
                             {m.completed && (
                               <div className="sched-mission-qty">
