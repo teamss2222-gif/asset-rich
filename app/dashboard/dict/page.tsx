@@ -8,6 +8,7 @@ type Tab = "en-ko" | "ko-en" | "gosa" | "sodam" | "korean";
 // ── 번역 결과 타입 ──
 interface TransResult {
   translation: string;
+  aiDefinitions?: string;
   definitions: DictEntry[];
   error?: string;
 }
@@ -50,7 +51,7 @@ function TranslateTab({ dir }: { dir: "en|ko" | "ko|en" }) {
       if (!res.ok) {
         setResult({ translation: "", definitions: [], error: json.message ?? "오류 발생" });
       } else {
-        setResult({ translation: json.data?.translation ?? "", definitions: json.data?.definitions ?? [] });
+        setResult({ translation: json.data?.translation ?? "", aiDefinitions: json.data?.aiDefinitions ?? "", definitions: json.data?.definitions ?? [] });
       }
     } catch {
       setResult({ translation: "", definitions: [], error: "네트워크 오류" });
@@ -99,6 +100,15 @@ function TranslateTab({ dir }: { dir: "en|ko" | "ko|en" }) {
                 <span className="dict-translation-arrow">{isEnKo ? "🇰🇷" : "🇺🇸"}</span>
                 <span className="dict-translation-text">{result.translation}</span>
               </div>
+
+              {/* 한→영일 때 AI 자세 설명 표시 */}
+              {!isEnKo && result.aiDefinitions && (
+                <div className="dict-definitions">
+                  <div className="dict-meaning-group">
+                    <p className="dict-def-text" style={{ whiteSpace: "pre-line" }}>{result.aiDefinitions}</p>
+                  </div>
+                </div>
+              )}
 
               {/* 영한일 때 영어 사전 정의 표시 */}
               {isEnKo && result.definitions.length > 0 && (
