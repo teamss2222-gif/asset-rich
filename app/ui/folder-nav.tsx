@@ -10,7 +10,7 @@ const folders = [
   { href: "/dashboard/issues",   label: "실시간 이슈", icon: "🔥", openIcon: "📂", color: "red"    },
   { href: "/dashboard/stock",    label: "주가 시뮬",   icon: "📊", openIcon: "📂", color: "green"  },
   { href: "/dashboard/game",     label: "게임",        icon: "🎮", openIcon: "📂", color: "purple" },
-  { href: "/dashboard/habit",     label: "습관 트래커", icon: "🌿", openIcon: "📂", color: "green"  },
+  { href: "/dashboard/habit",     label: "습관 트래커", icon: "🌿", openIcon: "📂", color: "teal"   },
   { href: "/dashboard/pomodoro",  label: "뽀모도로",    icon: "⏱️", openIcon: "📂", color: "orange" },
   { href: "/dashboard/dict",      label: "사전",         icon: "📖", openIcon: "📂", color: "indigo" },
   { href: "/dashboard/setting",  label: "설정",        icon: "⚙️", openIcon: "📂", color: "gray"   },

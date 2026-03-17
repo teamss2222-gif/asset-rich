@@ -1,26 +1,23 @@
-import { apiError, apiOk } from "../../../../lib/api-response";
+﻿import { apiError, apiOk } from "../../../../lib/api-response";
 
-export const maxDuration = 60; // Vercel 최대 60초
+export const maxDuration = 60;
 
-// ─────────────────────────────────────────────
-// Types
-// ─────────────────────────────────────────────
 export type AgentResult = {
   name: string;
   role: string;
   emoji: string;
-  stance: "강력매수" | "매수" | "중립" | "매도" | "강력매도";
-  score: number; // -5 ~ +5
+  stance: "\uac15\ub825\ub9e4\uc218" | "\ub9e4\uc218" | "\uc911\ub9bd" | "\ub9e4\ub3c4" | "\uac15\ub825\ub9e4\ub3c4";
+  score: number;
   reasoning: string;
   keyPoints: string[];
 };
 
 export type StockAnalysis = {
   query: string;
-  news: { title: string; source: string; pubDate: string }[];
+  news: { title: string; source: string }[];
   agents: AgentResult[];
   consensus: {
-    direction: "상승" | "하락" | "횡보";
+    direction: "\uc0c1\uc2b9" | "\ud558\ub77d" | "\ud6a1\ubcf4";
     magnitude: string;
     confidence: number;
     summary: string;
@@ -31,40 +28,82 @@ export type StockAnalysis = {
   analyzedAt: string;
 };
 
-// ─────────────────────────────────────────────
-// 네이버 뉴스 RSS 수집
-// ─────────────────────────────────────────────
-async function fetchStockNews(q: string): Promise<{ title: string; source: string; pubDate: string }[]> {
-  try {
-    const url = `https://search.naver.com/rss?where=news&query=${encodeURIComponent(q + " 주가")}`;
-    const res = await fetch(url, {
-      headers: { "User-Agent": "Mozilla/5.0" },
-      signal: AbortSignal.timeout(6000),
-    });
-    if (!res.ok) return [];
-    const xml = await res.text();
-    const items: { title: string; source: string; pubDate: string }[] = [];
-    const itemRegex = /<item>([\s\S]*?)<\/item>/g;
-    let match;
-    while ((match = itemRegex.exec(xml)) !== null && items.length < 8) {
-      const block = match[1];
-      const title = (/<title><!\[CDATA\[(.*?)\]\]><\/title>/.exec(block) ?? /<title>(.*?)<\/title>/.exec(block))?.[1]?.replace(/<[^>]+>/g, "").trim() ?? "";
-      const source = (/<source[^>]*>(.*?)<\/source>/.exec(block))?.[1]?.trim() ?? "";
-      const pubDate = (/<pubDate>(.*?)<\/pubDate>/.exec(block))?.[1]?.trim() ?? "";
-      if (title) items.push({ title, source, pubDate });
-    }
-    return items;
-  } catch {
-    return [];
-  }
+function extractJson(raw: string): string {
+  let text = raw.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+  const fence = /```(?:json)?\s*([\s\S]*?)```/.exec(text);
+  if (fence) text = fence[1].trim();
+  const s = text.indexOf("{");
+  const e = text.lastIndexOf("}");
+  return s !== -1 && e > s ? text.slice(s, e + 1) : text;
 }
 
-// ─────────────────────────────────────────────
-// Azure OpenAI 다중 에이전트 시뮬레이션
-// ─────────────────────────────────────────────
+async function fetchStockNews(q: string): Promise<{ title: string; source: string }[]> {
+  const FEEDS = [
+    "https://rss.news.daum.net/rss/economic",
+    "https://www.yna.co.kr/rss/economy.xml",
+  ];
+  const results: { title: string; source: string }[] = [];
+  const kw = q.replace(/\s/g, "").toLowerCase();
+
+  await Promise.allSettled(
+    FEEDS.map(async (url) => {
+      try {
+        const res = await fetch(url, {
+          headers: { "User-Agent": "Mozilla/5.0" },
+          signal: AbortSignal.timeout(5000),
+        });
+        if (!res.ok) return;
+        const xml = await res.text();
+        const itemRegex = /<item>([\s\S]*?)<\/item>/g;
+        let m;
+        while ((m = itemRegex.exec(xml)) !== null) {
+          const block = m[1];
+          const title =
+            (/<title><!\[CDATA\[(.+?)\]\]><\/title>/.exec(block) ??
+              /<title>(.+?)<\/title>/.exec(block))?.[1]
+              ?.replace(/<[^>]+>/g, "")
+              .trim() ?? "";
+          if (!title) continue;
+          const source =
+            (/<source[^>]*>(.+?)<\/source>/.exec(block))?.[1]?.trim() ?? "Daum";
+          const normalized = title.replace(/\s/g, "").toLowerCase();
+          if (normalized.includes(kw) || (kw.length >= 3 && kw.split("").some((c) => normalized.includes(c)))) {
+            results.push({ title, source });
+          }
+        }
+      } catch { /* skip */ }
+    })
+  );
+
+  if (results.length === 0) {
+    try {
+      const res = await fetch("https://rss.news.daum.net/rss/economic", {
+        headers: { "User-Agent": "Mozilla/5.0" },
+        signal: AbortSignal.timeout(5000),
+      });
+      if (res.ok) {
+        const xml = await res.text();
+        const itemRegex = /<item>([\s\S]*?)<\/item>/g;
+        let m;
+        while ((m = itemRegex.exec(xml)) !== null && results.length < 6) {
+          const block = m[1];
+          const title =
+            (/<title><!\[CDATA\[(.+?)\]\]><\/title>/.exec(block) ??
+              /<title>(.+?)<\/title>/.exec(block))?.[1]
+              ?.replace(/<[^>]+>/g, "")
+              .trim() ?? "";
+          if (title) results.push({ title, source: "Daum\uacbd\uc81c" });
+        }
+      }
+    } catch { /* skip */ }
+  }
+
+  return results.slice(0, 8);
+}
+
 async function runAgentSimulation(
   q: string,
-  news: { title: string; source: string; pubDate: string }[]
+  news: { title: string; source: string }[]
 ): Promise<{ agents: AgentResult[]; consensus: StockAnalysis["consensus"] } | null> {
   const apiKey = process.env.AZURE_OPENAI_API_KEY?.split(/[\r\n]/)[0].replace(/\s.*$/, "").trim();
   const ep = (process.env.AZURE_OPENAI_ENDPOINT ?? "").split(/[\r\n]/)[0].trim();
@@ -72,104 +111,100 @@ async function runAgentSimulation(
   const ver = (process.env.AZURE_OPENAI_API_VERSION ?? "2025-04-01-preview").split(/[\r\n]/)[0].trim();
   if (!apiKey || !ep || !dep) return null;
 
-  const origin = new URL(ep).origin;
+  let origin: string;
+  try { origin = new URL(ep).origin; } catch { return null; }
   const url = `${origin}/openai/deployments/${encodeURIComponent(dep)}/chat/completions?api-version=${encodeURIComponent(ver)}`;
 
-  const newsText = news.length > 0
-    ? news.map((n, i) => `${i + 1}. [${n.source}] ${n.title}`).join("\n")
-    : "관련 뉴스 없음 (최근 뉴스를 찾을 수 없습니다)";
+  const newsText =
+    news.length > 0
+      ? news.slice(0, 6).map((n, i) => `${i + 1}. [${n.source}] ${n.title}`).join("\n")
+      : "\ucd5c\uadfc \uad00\ub828 \ub274\uc2a4 \uc5c6\uc74c";
 
-  const prompt = `당신은 주식 시장 시뮬레이션 AI입니다.
-종목: "${q}"
-최근 뉴스 헤드라인:
+  const systemMsg = `\ub2f9\uc2e0\uc740 \ud55c\uad6d \uc8fc\uc2dd \uc2dc\uc7a5 \uc2dc\ubbac\ub808\uc774\uc158 AI\uc785\ub2c8\ub2e4. \ubc18\ub4dc\uc2dc \uc720\ud6a8\ud55c JSON\ub9cc \ucd9c\ub825\ud558\uc138\uc694.`;
+  const userMsg = `\uc885\ubaa9: "${q}"
+\uad00\ub828 \ub274\uc2a4:
 ${newsText}
 
-아래 5명의 투자 주체가 이 뉴스를 보고 어떤 판단을 내릴지 시뮬레이션하세요.
+\uc544\ub798 5\uba85\uc758 \ud22c\uc790 \uc8fc\uccb4\uac00 \uc774 \uc815\ubcf4\ub97c \ubcf4\uace0 \uc5b4\ub5a4 \ud22c\uc790 \ud310\ub2e8\uc744 \ub0b4\ub9b4\uc9c0 \uc2dc\ubbac\ub808\uc774\uc158\ud558\uc138\uc694.
+1. \uac1c\uc778\ud22c\uc790\uc790 (\ub2e8\uae30 \uc2ec\ub9ac, \ucee4\ubba4\ub2c8\ud2f0)
+2. \uad6d\ub0b4\uae30\uad00 (\ud380\ub354\uba58\ud138, 3~6\uac1c\uc6d4)
+3. \uc678\uad6d\uc778 (\ud658\uc728, \uae00\ub85c\ubc8c \ub9e4\ud06c\ub85c)
+4. \uc99d\uad8c\uc0ac \uc560\ub110\ub9ac\uc2a4\ud2b8 (\ubc38\ub958\uc5d0\uc774\uc158)
+5. \uacf5\ub9e4\ub3c4 \uc138\ub825 (\ub9ac\uc2a4\ud06c \ubd80\uac01)
 
-각 에이전트:
-1. 개인투자자 (단기 심리, 커뮤니티 반응 중시)
-2. 국내기관 (펀더멘털, 실적 중심, 3~6개월 관점)
-3. 외국인 (환율·글로벌 매크로·달러인덱스 고려)
-4. 증권사 애널리스트 (밸류에이션, 목표주가 관점)
-5. 공매도 세력 (약세 포인트, 리스크 부각)
-
-아래 JSON 형식으로만 출력하세요. 다른 텍스트 없이 JSON만:
+\uc544\ub798 JSON\uc744 \ubc18\ud658\ud558\uc138\uc694:
 {
   "agents": [
     {
-      "name": "에이전트명",
-      "role": "역할 설명 (10자 이내)",
-      "emoji": "이모지",
-      "stance": "강력매수|매수|중립|매도|강력매도 중 하나",
-      "score": 숫자(-5~+5, 양수=매수, 음수=매도),
-      "reasoning": "판단 근거 (2~3문장)",
-      "keyPoints": ["핵심 포인트 1", "핵심 포인트 2"]
+      "name": "\ud22c\uc790\uc790 \uc720\ud615\uba85",
+      "role": "\uc5ed\ud560 \ud55c\uc904",
+      "emoji": "\uc774\ubaa8\uc9c0",
+      "stance": "\uac15\ub825\ub9e4\uc218 \ub610\ub294 \ub9e4\uc218 \ub610\ub294 \uc911\ub9bd \ub610\ub294 \ub9e4\ub3c4 \ub610\ub294 \uac15\ub825\ub9e4\ub3c4",
+      "score": 0,
+      "reasoning": "\ud310\ub2e8 \uadfc\uac70 2\ubb38\uc7a5",
+      "keyPoints": ["\ud3ec\uc778\ud2b81", "\ud3ec\uc778\ud2b82"]
     }
   ],
   "consensus": {
-    "direction": "상승|하락|횡보 중 하나",
-    "magnitude": "예상 변동폭 (예: +1~3%, -2~4%)",
-    "confidence": 신뢰도(0~100 정수),
-    "summary": "종합 판단 (3~4문장, 한국어)",
-    "timeframe": "예측 기간 (예: 1주일, 2주일)",
-    "bullCount": 매수의견 에이전트 수(정수),
-    "bearCount": 매도의견 에이전트 수(정수)
+    "direction": "\uc0c1\uc2b9 \ub610\ub294 \ud558\ub77d \ub610\ub294 \ud6a1\ubcf4",
+    "magnitude": "+1~3%",
+    "confidence": 70,
+    "summary": "\uc885\ud569 \ud310\ub2e8 3\ubb38\uc7a5",
+    "timeframe": "1\uc8fc\uc77c",
+    "bullCount": 3,
+    "bearCount": 1
   }
-}`;
+}
+score\ub294 -5(\uac15\ub825\ub9e4\ub3c4)~+5(\uac15\ub825\ub9e4\uc218) \uc22b\uc790, confidence\ub294 0~100 \uc22b\uc790.`;
 
-  try {
+  async function call(useJsonMode: boolean) {
+    const body: Record<string, unknown> = {
+      messages: [
+        { role: "system", content: systemMsg },
+        { role: "user", content: userMsg },
+      ],
+      max_tokens: 3000,
+      temperature: 0.7,
+    };
+    if (useJsonMode) body.response_format = { type: "json_object" };
     const res = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "api-key": apiKey },
-      body: JSON.stringify({
-        messages: [{ role: "user", content: prompt }],
-        max_completion_tokens: 2000,
-        response_format: { type: "json_object" },
-      }),
-      signal: AbortSignal.timeout(40000),
+      headers: { "Content-Type": "application/json", "api-key": apiKey! },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(45000),
     });
+    return res;
+  }
+
+  try {
+    let res = await call(true);
+    if (!res.ok) res = await call(false);
     if (!res.ok) return null;
     const data = await res.json() as { choices?: Array<{ message: { content: string } }> };
-    const raw = data.choices?.[0]?.message?.content ?? "{}";
-    const parsed = JSON.parse(raw) as { agents?: AgentResult[]; consensus?: StockAnalysis["consensus"] };
-    if (!parsed.agents || !parsed.consensus) return null;
+    const raw = data.choices?.[0]?.message?.content ?? "";
+    const jsonStr = extractJson(raw);
+    const parsed = JSON.parse(jsonStr) as { agents?: AgentResult[]; consensus?: StockAnalysis["consensus"] };
+    if (!parsed.agents?.length || !parsed.consensus) return null;
     return { agents: parsed.agents, consensus: parsed.consensus };
   } catch {
     return null;
   }
 }
 
-// ─────────────────────────────────────────────
-// GET /api/stock/analyze?q=삼성전자
-// ─────────────────────────────────────────────
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const q = (searchParams.get("q") ?? "").trim().slice(0, 50);
+  if (!q) return apiError({ status: 400, code: "BAD_REQUEST", message: "\uc885\ubaa9\uba85\uc744 \uc785\ub825\ud558\uc138\uc694." });
 
-  if (!q) return apiError({ status: 400, code: "BAD_REQUEST", message: "종목명을 입력하세요." });
-
-  const [news, simulation] = await Promise.all([
-    fetchStockNews(q),
-    (async () => {
-      // 뉴스 먼저 수집 후 시뮬레이션 — 직렬 처리가 더 좋음
-      return null;
-    })(),
-  ]);
-
-  void simulation; // 병렬 처리는 아래서 처리
-
+  const news = await fetchStockNews(q);
   const result = await runAgentSimulation(q, news);
+
   if (!result) {
-    return apiError({ status: 503, code: "AI_UNAVAILABLE", message: "AI 분석 서비스를 사용할 수 없습니다. Azure OpenAI 설정을 확인하세요." });
+    return apiError({ status: 503, code: "AI_UNAVAILABLE", message: "AI \ubd84\uc11d\uc5d0 \uc2e4\ud328\ud588\uc2b5\ub2c8\ub2e4. \uc7a0\uc2dc \ud6c4 \ub2e4\uc2dc \uc2dc\ub3c4\ud574 \uc8fc\uc138\uc694." });
   }
 
-  const analysis: StockAnalysis = {
-    query: q,
-    news,
-    agents: result.agents,
-    consensus: result.consensus,
+  return apiOk({
+    query: q, news, agents: result.agents, consensus: result.consensus,
     analyzedAt: new Date().toISOString(),
-  };
-
-  return apiOk(analysis);
+  } satisfies StockAnalysis);
 }
