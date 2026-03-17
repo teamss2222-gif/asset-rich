@@ -136,7 +136,7 @@ export default function AssetManager({ initialEntries, hasRealEstateMarketApiKey
     try { localStorage.setItem("asset-cf", JSON.stringify({ inc, sav, int, pri })); } catch { /* ignore */ }
   }, []);
 
-  /* addr script */
+  /* addr script — 마운트 시 로드 X, 사용자가 주소검색 클릭할 때만 로드 */
   const ensureAddr = useCallback(() => {
     if (typeof window === "undefined") return;
     if (window.daum?.Postcode) { setAddrReady(true); setAddrLoading(false); return; }
@@ -159,7 +159,6 @@ export default function AssetManager({ initialEntries, hasRealEstateMarketApiKey
     s.onerror = onErr;
     document.body.appendChild(s);
   }, []);
-  useEffect(() => { ensureAddr(); }, [ensureAddr]);
 
   /* ── computed ── */
   const catTotals = useMemo(() =>
