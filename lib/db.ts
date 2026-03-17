@@ -75,10 +75,7 @@ export async function ensureAssetHoldingsTable() {
       updated_at TIMESTAMP DEFAULT NOW(),
       UNIQUE(username, category_key)
     );
-  `);
-  await pool.query(`
-    CREATE INDEX IF NOT EXISTS asset_holdings_username_idx
-    ON asset_holdings (username);
+    CREATE INDEX IF NOT EXISTS asset_holdings_username_idx ON asset_holdings (username);
   `);
 
   assetHoldingsTableInitialized = true;
@@ -105,14 +102,8 @@ export async function ensureAssetEntriesTable() {
       created_at TIMESTAMP DEFAULT NOW(),
       updated_at TIMESTAMP DEFAULT NOW()
     );
-  `);
-  await pool.query(`
-    ALTER TABLE asset_entries
-    ADD COLUMN IF NOT EXISTS extra_data JSONB NOT NULL DEFAULT '{}'::jsonb;
-  `);
-  await pool.query(`
-    CREATE INDEX IF NOT EXISTS asset_entries_username_idx
-    ON asset_entries (username, category_key, sort_order);
+    ALTER TABLE asset_entries ADD COLUMN IF NOT EXISTS extra_data JSONB NOT NULL DEFAULT '{}'::jsonb;
+    CREATE INDEX IF NOT EXISTS asset_entries_username_idx ON asset_entries (username, category_key, sort_order);
   `);
 
   assetEntriesTableInitialized = true;
@@ -134,10 +125,7 @@ export async function ensureAssetSnapshotsTable() {
       created_at TIMESTAMP DEFAULT NOW(),
       UNIQUE(username, snapshot_date)
     );
-  `);
-  await pool.query(`
-    CREATE INDEX IF NOT EXISTS asset_snapshots_username_date_idx
-    ON asset_snapshots (username, snapshot_date DESC);
+    CREATE INDEX IF NOT EXISTS asset_snapshots_username_date_idx ON asset_snapshots (username, snapshot_date DESC);
   `);
   assetSnapshotsTableInitialized = true;
 }
@@ -183,10 +171,7 @@ export async function ensureIntegrationConnectionsTable() {
       updated_at TIMESTAMP DEFAULT NOW(),
       UNIQUE(username, provider)
     );
-  `);
-  await pool.query(`
-    CREATE INDEX IF NOT EXISTS integration_connections_username_idx
-    ON integration_connections (username, provider);
+    CREATE INDEX IF NOT EXISTS integration_connections_username_idx ON integration_connections (username, provider);
   `);
 
   integrationConnectionsTableInitialized = true;
@@ -212,10 +197,7 @@ export async function ensureBackgroundJobsTable() {
       created_at TIMESTAMP DEFAULT NOW(),
       updated_at TIMESTAMP DEFAULT NOW()
     );
-  `);
-  await pool.query(`
-    CREATE INDEX IF NOT EXISTS background_jobs_username_idx
-    ON background_jobs (username, created_at DESC);
+    CREATE INDEX IF NOT EXISTS background_jobs_username_idx ON background_jobs (username, created_at DESC);
   `);
 
   backgroundJobsTableInitialized = true;
@@ -238,10 +220,7 @@ export async function ensureWebhookEventsTable() {
       received_at TIMESTAMP DEFAULT NOW(),
       UNIQUE(provider, delivery_id)
     );
-  `);
-  await pool.query(`
-    CREATE INDEX IF NOT EXISTS webhook_events_provider_received_idx
-    ON webhook_events (provider, received_at DESC);
+    CREATE INDEX IF NOT EXISTS webhook_events_provider_received_idx ON webhook_events (provider, received_at DESC);
   `);
 
   webhookEventsTableInitialized = true;
@@ -266,14 +245,8 @@ export async function ensureIssuesTable() {
       explanation TEXT DEFAULT '',
       collected_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
     );
-  `);
-  // 기존 DB 마이그레이션: explanation 컬럼이 없으면 추가
-  await pool.query(`
     ALTER TABLE realtime_issues ADD COLUMN IF NOT EXISTS explanation TEXT DEFAULT '';
-  `);
-  await pool.query(`
-    CREATE INDEX IF NOT EXISTS idx_ri_collected_at
-    ON realtime_issues (collected_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_ri_collected_at ON realtime_issues (collected_at DESC);
   `);
 
   issuesTableInitialized = true;
@@ -285,6 +258,7 @@ export async function ensureScheduleTables() {
   await ensureUsersTable();
   const pool = getPool();
 
+  // 14개 순차 쿼리 → 단일 쿼리로 통합하여 DB 왕복 횟수 최소화
   await pool.query(`
     CREATE TABLE IF NOT EXISTS schedule_events (
       id SERIAL PRIMARY KEY,
@@ -303,20 +277,13 @@ export async function ensureScheduleTables() {
       CHECK (end_time > 420 AND end_time <= 1440),
       CHECK (end_time > start_time)
     );
-  `);
-  // 기존 테이블에 컬럼 추가 (idempotent)
-  await pool.query(`ALTER TABLE schedule_events ADD COLUMN IF NOT EXISTS repeat_type VARCHAR(10) NOT NULL DEFAULT 'none';`);
-  await pool.query(`ALTER TABLE schedule_events ADD COLUMN IF NOT EXISTS repeat_group_id UUID;`);
-  await pool.query(`
-    CREATE INDEX IF NOT EXISTS schedule_events_user_date_idx
-    ON schedule_events (username, event_date);
-  `);
-  await pool.query(`
-    CREATE INDEX IF NOT EXISTS schedule_events_group_idx
-    ON schedule_events (repeat_group_id) WHERE repeat_group_id IS NOT NULL;
-  `);
 
-  await pool.query(`
+    ALTER TABLE schedule_events ADD COLUMN IF NOT EXISTS repeat_type VARCHAR(10) NOT NULL DEFAULT 'none';
+    ALTER TABLE schedule_events ADD COLUMN IF NOT EXISTS repeat_group_id UUID;
+
+    CREATE INDEX IF NOT EXISTS schedule_events_user_date_idx ON schedule_events (username, event_date);
+    CREATE INDEX IF NOT EXISTS schedule_events_group_idx ON schedule_events (repeat_group_id) WHERE repeat_group_id IS NOT NULL;
+
     CREATE TABLE IF NOT EXISTS schedule_day_summaries (
       username VARCHAR(64) NOT NULL REFERENCES users(username) ON DELETE CASCADE,
       summary_date DATE NOT NULL,
@@ -324,10 +291,7 @@ export async function ensureScheduleTables() {
       updated_at TIMESTAMP DEFAULT NOW(),
       PRIMARY KEY (username, summary_date)
     );
-  `);
 
-  // ── 성과 체크 (이벤트별 날짜별 성공 여부) ──
-  await pool.query(`
     CREATE TABLE IF NOT EXISTS schedule_event_completions (
       id SERIAL PRIMARY KEY,
       username VARCHAR(64) NOT NULL REFERENCES users(username) ON DELETE CASCADE,
@@ -336,14 +300,8 @@ export async function ensureScheduleTables() {
       completed BOOLEAN NOT NULL DEFAULT FALSE,
       UNIQUE(username, event_id, completion_date)
     );
-  `);
-  await pool.query(`
-    CREATE INDEX IF NOT EXISTS sec_user_date_idx
-    ON schedule_event_completions (username, completion_date);
-  `);
+    CREATE INDEX IF NOT EXISTS sec_user_date_idx ON schedule_event_completions (username, completion_date);
 
-  // ── 미션 템플릿 (공통 등록) ──
-  await pool.query(`
     CREATE TABLE IF NOT EXISTS schedule_mission_templates (
       id SERIAL PRIMARY KEY,
       username VARCHAR(64) NOT NULL REFERENCES users(username) ON DELETE CASCADE,
@@ -352,14 +310,8 @@ export async function ensureScheduleTables() {
       sort_order SMALLINT NOT NULL DEFAULT 0,
       created_at TIMESTAMP DEFAULT NOW()
     );
-  `);
-  await pool.query(`
-    CREATE INDEX IF NOT EXISTS smt_user_idx
-    ON schedule_mission_templates (username);
-  `);
+    CREATE INDEX IF NOT EXISTS smt_user_idx ON schedule_mission_templates (username);
 
-  // ── 미션 완료 기록 (날짜별) ──
-  await pool.query(`
     CREATE TABLE IF NOT EXISTS schedule_mission_completions (
       id SERIAL PRIMARY KEY,
       username VARCHAR(64) NOT NULL REFERENCES users(username) ON DELETE CASCADE,
@@ -369,15 +321,8 @@ export async function ensureScheduleTables() {
       quantity INTEGER NOT NULL DEFAULT 1,
       UNIQUE(username, template_id, mission_date)
     );
-  `);
-  // 기존 테이블에 quantity 컬럼 추가 (없는 경우)
-  await pool.query(`
-    ALTER TABLE schedule_mission_completions
-    ADD COLUMN IF NOT EXISTS quantity INTEGER NOT NULL DEFAULT 1;
-  `);
-  await pool.query(`
-    CREATE INDEX IF NOT EXISTS smc_user_date_idx
-    ON schedule_mission_completions (username, mission_date);
+    ALTER TABLE schedule_mission_completions ADD COLUMN IF NOT EXISTS quantity INTEGER NOT NULL DEFAULT 1;
+    CREATE INDEX IF NOT EXISTS smc_user_date_idx ON schedule_mission_completions (username, mission_date);
   `);
 
   scheduleTablesInitialized = true;
@@ -399,12 +344,8 @@ export async function ensureHabitTables() {
       sort_order SMALLINT NOT NULL DEFAULT 0,
       created_at TIMESTAMP DEFAULT NOW()
     );
-  `);
-  await pool.query(`
     CREATE INDEX IF NOT EXISTS habits_username_idx ON habits (username, sort_order);
-  `);
 
-  await pool.query(`
     CREATE TABLE IF NOT EXISTS habit_logs (
       id SERIAL PRIMARY KEY,
       username VARCHAR(64) NOT NULL REFERENCES users(username) ON DELETE CASCADE,
@@ -412,12 +353,8 @@ export async function ensureHabitTables() {
       log_date DATE NOT NULL,
       UNIQUE(username, habit_id, log_date)
     );
-  `);
-  await pool.query(`
     CREATE INDEX IF NOT EXISTS hl_user_date_idx ON habit_logs (username, log_date);
-  `);
 
-  await pool.query(`
     CREATE TABLE IF NOT EXISTS pomodoro_sessions (
       id SERIAL PRIMARY KEY,
       username VARCHAR(64) NOT NULL REFERENCES users(username) ON DELETE CASCADE,
@@ -427,8 +364,6 @@ export async function ensureHabitTables() {
       label VARCHAR(80) NOT NULL DEFAULT '',
       created_at TIMESTAMP DEFAULT NOW()
     );
-  `);
-  await pool.query(`
     CREATE INDEX IF NOT EXISTS pomo_user_date_idx ON pomodoro_sessions (username, session_date DESC);
   `);
 
