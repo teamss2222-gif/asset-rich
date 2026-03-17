@@ -157,28 +157,25 @@ ${newsText}
 }
 score\ub294 -5(\uac15\ub825\ub9e4\ub3c4)~+5(\uac15\ub825\ub9e4\uc218) \uc22b\uc790, confidence\ub294 0~100 \uc22b\uc790.`;
 
-  async function call(useJsonMode: boolean) {
+  async function call() {
     const body: Record<string, unknown> = {
       messages: [
         { role: "system", content: systemMsg },
         { role: "user", content: userMsg },
       ],
-      max_tokens: 3000,
-      temperature: 0.7,
+      max_completion_tokens: 16000,
     };
-    if (useJsonMode) body.response_format = { type: "json_object" };
     const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json", "api-key": apiKey! },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(45000),
+      signal: AbortSignal.timeout(55000),
     });
     return res;
   }
 
   try {
-    let res = await call(true);
-    if (!res.ok) res = await call(false);
+    const res = await call();
     if (!res.ok) return null;
     const data = await res.json() as { choices?: Array<{ message: { content: string } }> };
     const raw = data.choices?.[0]?.message?.content ?? "";
