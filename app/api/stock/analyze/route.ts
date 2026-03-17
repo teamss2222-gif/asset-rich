@@ -6,7 +6,7 @@ export type AgentResult = {
   name: string;
   role: string;
   emoji: string;
-  stance: "\uac15\ub825\ub9e4\uc218" | "\ub9e4\uc218" | "\uc911\ub9bd" | "\ub9e4\ub3c4" | "\uac15\ub825\ub9e4\ub3c4";
+  stance: "강력매수" | "매수" | "중립" | "매도" | "강력매도";
   score: number;
   reasoning: string;
   keyPoints: string[];
@@ -17,7 +17,7 @@ export type StockAnalysis = {
   news: { title: string; source: string }[];
   agents: AgentResult[];
   consensus: {
-    direction: "\uc0c1\uc2b9" | "\ud558\ub77d" | "\ud6a1\ubcf4";
+    direction: "상승" | "하락" | "횡보";
     magnitude: string;
     confidence: number;
     summary: string;
@@ -92,7 +92,7 @@ async function fetchStockNews(q: string): Promise<{ title: string; source: strin
               /<title>(.+?)<\/title>/.exec(block))?.[1]
               ?.replace(/<[^>]+>/g, "")
               .trim() ?? "";
-          if (title) results.push({ title, source: "Daum\uacbd\uc81c" });
+          if (title) results.push({ title, source: "Daum경제" });
         }
       }
     } catch { /* skip */ }
@@ -118,9 +118,9 @@ async function runAgentSimulation(
   const newsText =
     news.length > 0
       ? news.slice(0, 6).map((n, i) => `${i + 1}. [${n.source}] ${n.title}`).join("\n")
-      : "\ucd5c\uadfc \uad00\ub828 \ub274\uc2a4 \uc5c6\uc74c";
+      : "최근 관련 뉴스 없음";
 
-  const systemMsg = `\ub2f9\uc2e0\uc740 \ud55c\uad6d \uc8fc\uc2dd \uc2dc\uc7a5 \uc2dc\ubbac\ub808\uc774\uc158 AI\uc785\ub2c8\ub2e4. \ubc18\ub4dc\uc2dc \uc720\ud6a8\ud55c JSON\ub9cc \ucd9c\ub825\ud558\uc138\uc694.`;
+  const systemMsg = `당신은 한국 주식 시장 시뮬레이션 AI입니다. 반드시 유효한 JSON만 출력하세요.`;
   const userMsg = `\uc885\ubaa9: "${q}"
 \uad00\ub828 \ub274\uc2a4:
 ${newsText}
@@ -194,13 +194,13 @@ score\ub294 -5(\uac15\ub825\ub9e4\ub3c4)~+5(\uac15\ub825\ub9e4\uc218) \uc22b\uc7
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const q = (searchParams.get("q") ?? "").trim().slice(0, 50);
-  if (!q) return apiError({ status: 400, code: "BAD_REQUEST", message: "\uc885\ubaa9\uba85\uc744 \uc785\ub825\ud558\uc138\uc694." });
+  if (!q) return apiError({ status: 400, code: "BAD_REQUEST", message: "종목명을 입력하세요." });
 
   const news = await fetchStockNews(q);
   const result = await runAgentSimulation(q, news);
 
   if (!result) {
-    return apiError({ status: 503, code: "AI_UNAVAILABLE", message: "AI \ubd84\uc11d\uc5d0 \uc2e4\ud328\ud588\uc2b5\ub2c8\ub2e4. \uc7a0\uc2dc \ud6c4 \ub2e4\uc2dc \uc2dc\ub3c4\ud574 \uc8fc\uc138\uc694." });
+    return apiError({ status: 503, code: "AI_UNAVAILABLE", message: "AI 분석에 실패했습니다. 잠시 후 다시 시도해 주세요." });
   }
 
   return apiOk({
