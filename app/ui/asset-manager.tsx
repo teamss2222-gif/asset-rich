@@ -154,6 +154,8 @@ export default function AssetManager({ initialEntries, hasRealEstateMarketApiKey
   // 코인 검색
   const [coinSearch, setCoinSearch] = useState<Record<string, string>>({});
   const [coinResults, setCoinResults] = useState<Record<string, Array<{symbol: string; name: string}>>>({});
+  // 예금 수정 모드
+  const [depositEditIds, setDepositEditIds] = useState<Set<string>>(new Set());
 
   /* localStorage cashflow */
   useEffect(() => {
@@ -435,8 +437,11 @@ export default function AssetManager({ initialEntries, hasRealEstateMarketApiKey
     }).open({ popupName: "asset-addr" });
   };
 
-  const addEntry = (k: AssetCategoryKey) =>
-    setDrafts((cur) => [...cur, newLocalRow(k, cur.filter((e) => e.categoryKey === k).length)]);
+  const addEntry = (k: AssetCategoryKey) => {
+    const newRow = newLocalRow(k, drafts.filter((e) => e.categoryKey === k).length);
+    setDrafts((cur) => [...cur, newRow]);
+    if (k === "deposit") setDepositEditIds((prev) => new Set([...prev, newRow.id]));
+  };
 
   const removeEntry = (id: string) =>
     setDrafts((cur) => {
@@ -586,28 +591,84 @@ export default function AssetManager({ initialEntries, hasRealEstateMarketApiKey
                   const effective = getEffectiveAssetAmountManwon(entry);
                   return (
                     <div key={entry.id} className="asset-row-card">
-                      <div className="asset-row">
-                        {catMeta.supportsSubtype && (
-                          <select className="asset-select" value={entry.subtypeKey ?? "selfOwned"}
-                            onChange={(e) => upd(entry.id, (d) => ({ ...d, subtypeKey: e.target.value as AssetSubtypeKey }))}>
-                            {REAL_ESTATE_SUBTYPES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
-                          </select>
-                        )}
-                        <input className="asset-row-input asset-row-label"
-                          value={entry.label}
-                          onChange={(e) => upd(entry.id, (d) => ({ ...d, label: e.target.value }))}
-                          placeholder={buildDefaultLabel(group.key, idx + 1, entry.subtypeKey)}
-                        />
-                        <div className="asset-input-wrap">
-                          <input className="asset-input" inputMode="numeric"
-                            value={entry.amountManwon === 0 ? "" : String(entry.amountManwon)}
-                            onChange={(e) => handleAmt(entry.id, e.target.value)}
-                            placeholder="0"
+                      {group.key === "deposit" ? (
+                        depositEditIds.has(entry.id) ? (
+                          /* ── 예금 수정 모드 ── */
+                          <div className="asset-deposit-edit-row">
+                            <select className="asset-select" value={entry.extraData?.bankName ?? ""}
+                              onChange={(e) => upd(entry.id, (d) => ({ ...d, extraData: { ...(d.extraData ?? {}), bankName: e.target.value } }))}>
+                              <option value="">은행 선택</option>
+                              {BANKS.map((b) => <option key={b} value={b}>{b}</option>)}
+                            </select>
+                            <select className="asset-select" value={entry.extraData?.depositSubtype ?? "checking"}
+                              onChange={(e) => upd(entry.id, (d) => ({ ...d, extraData: { ...(d.extraData ?? {}), depositSubtype: e.target.value as DepositSubtypeKey } }))}>
+                              {DEPOSIT_SUBTYPES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+                            </select>
+                            <input className="asset-row-input asset-row-label"
+                              value={entry.label}
+                              onChange={(e) => upd(entry.id, (d) => ({ ...d, label: e.target.value }))}
+                              placeholder={buildDefaultLabel(group.key, idx + 1, entry.subtypeKey)}
+                            />
+                            <div className="asset-input-wrap">
+                              <input className="asset-input" inputMode="numeric"
+                                value={entry.amountManwon === 0 ? "" : String(entry.amountManwon)}
+                                onChange={(e) => handleAmt(entry.id, e.target.value)}
+                                placeholder="0"
+                              />
+                              <span className="asset-input-unit">만원</span>
+                            </div>
+                            <button className="btn btn-primary btn-sm" type="button"
+                              onClick={() => setDepositEditIds((prev) => { const n = new Set(prev); n.delete(entry.id); return n; })}>
+                              ✓
+                            </button>
+                            <button className="asset-row-remove" type="button" onClick={() => removeEntry(entry.id)}>삭제</button>
+                          </div>
+                        ) : (
+                          /* ── 예금 보기 모드 ── */
+                          <div className="asset-deposit-view-row">
+                            <div className="asset-deposit-badges">
+                              {entry.extraData?.bankName
+                                ? <span className="asset-deposit-bank">{entry.extraData.bankName}</span>
+                                : <span className="asset-deposit-bank asset-deposit-bank-empty">은행 미선택</span>}
+                              <span className="asset-deposit-type">
+                                {DEPOSIT_SUBTYPES.find((s) => s.key === (entry.extraData?.depositSubtype ?? "checking"))?.label ?? "입출금"}
+                              </span>
+                            </div>
+                            <span className="asset-deposit-name">
+                              {entry.label || <span style={{color:"var(--text-3)",fontStyle:"italic"}}>항목명 없음</span>}
+                            </span>
+                            <span className="asset-deposit-amt">{formatManwon(entry.amountManwon)}</span>
+                            <button className="btn btn-ghost btn-xs" type="button"
+                              onClick={() => setDepositEditIds((prev) => new Set([...prev, entry.id]))}>
+                              ✏️ 수정
+                            </button>
+                            <button className="asset-row-remove" type="button" onClick={() => removeEntry(entry.id)}>삭제</button>
+                          </div>
+                        )
+                      ) : (
+                        <div className="asset-row">
+                          {catMeta.supportsSubtype && (
+                            <select className="asset-select" value={entry.subtypeKey ?? "selfOwned"}
+                              onChange={(e) => upd(entry.id, (d) => ({ ...d, subtypeKey: e.target.value as AssetSubtypeKey }))}>
+                              {REAL_ESTATE_SUBTYPES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+                            </select>
+                          )}
+                          <input className="asset-row-input asset-row-label"
+                            value={entry.label}
+                            onChange={(e) => upd(entry.id, (d) => ({ ...d, label: e.target.value }))}
+                            placeholder={buildDefaultLabel(group.key, idx + 1, entry.subtypeKey)}
                           />
-                          <span className="asset-input-unit">만원</span>
+                          <div className="asset-input-wrap">
+                            <input className="asset-input" inputMode="numeric"
+                              value={entry.amountManwon === 0 ? "" : String(entry.amountManwon)}
+                              onChange={(e) => handleAmt(entry.id, e.target.value)}
+                              placeholder="0"
+                            />
+                            <span className="asset-input-unit">만원</span>
+                          </div>
+                          <button className="asset-row-remove" type="button" onClick={() => removeEntry(entry.id)}>삭제</button>
                         </div>
-                        <button className="asset-row-remove" type="button" onClick={() => removeEntry(entry.id)}>삭제</button>
-                      </div>
+                      )}
 
                       {group.key === "realEstate" && (
                         <>
@@ -703,20 +764,7 @@ export default function AssetManager({ initialEntries, hasRealEstateMarketApiKey
                         </>
                       )}
 
-                      {/* ── 예금·적금 ──────────────────────────────── */}
-                      {group.key === "deposit" && (
-                        <div className="asset-deposit-meta">
-                          <select className="asset-select" value={entry.extraData?.bankName ?? ""}
-                            onChange={(e) => upd(entry.id, (d) => ({ ...d, extraData: { ...(d.extraData ?? {}), bankName: e.target.value } }))}>
-                            <option value="">은행 선택</option>
-                            {BANKS.map((b) => <option key={b} value={b}>{b}</option>)}
-                          </select>
-                          <select className="asset-select" value={entry.extraData?.depositSubtype ?? "checking"}
-                            onChange={(e) => upd(entry.id, (d) => ({ ...d, extraData: { ...(d.extraData ?? {}), depositSubtype: e.target.value as DepositSubtypeKey } }))}>
-                            {DEPOSIT_SUBTYPES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
-                          </select>
-                        </div>
-                      )}
+
 
                       {/* ── 주식 ────────────────────────────────────── */}
                       {group.key === "stock" && (

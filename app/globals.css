@@ -627,6 +627,38 @@ body.bg-loggedin {
 .asset-deposit-meta { display: flex; gap: 0.5rem; flex-wrap: wrap; }
 .asset-deposit-meta .asset-select { min-width: 120px; }
 
+/* ── 예금 뷰 모드 ───────────────────────────────────────────── */
+.asset-deposit-view-row {
+  display: flex; align-items: center; gap: 0.55rem;
+  min-height: 2.4rem; padding: 0.1rem;
+}
+.asset-deposit-badges { display: flex; gap: 0.3rem; flex-shrink: 0; }
+.asset-deposit-bank {
+  font-size: 0.71rem; font-weight: 700;
+  background: rgba(29,143,90,0.15); color: #1d8f5a;
+  padding: 0.15rem 0.55rem; border-radius: 999px; white-space: nowrap;
+}
+.asset-deposit-bank-empty { opacity: 0.55; font-weight: 400; }
+.asset-deposit-type {
+  font-size: 0.71rem; color: var(--text-3);
+  background: var(--surface-3); padding: 0.15rem 0.5rem;
+  border-radius: 999px; white-space: nowrap;
+}
+.asset-deposit-name {
+  flex: 1; font-size: 0.83rem; color: var(--text-1);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.asset-deposit-amt {
+  font-size: 0.84rem; font-weight: 700; color: var(--text-1); flex-shrink: 0;
+}
+/* ── 예금 수정 모드 ─────────────────────────────────────────── */
+.asset-deposit-edit-row {
+  display: grid;
+  grid-template-columns: 110px 100px minmax(0,1fr) 150px 36px auto;
+  gap: 0.45rem; align-items: center;
+}
+.btn-xs { padding: 0.2rem 0.55rem; font-size: 0.78rem; }
+
 /* 주식·코인 공통 */
 .asset-market-meta  { display: grid; gap: 0.45rem; }
 .asset-search-row   { display: flex; gap: 0.5rem; align-items: flex-start; flex-wrap: wrap; }
