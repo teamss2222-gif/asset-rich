@@ -1,8 +1,11 @@
 ﻿"use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ASSET_CATEGORIES,
+  BANKS,
+  CAR_MAKERS,
+  DEPOSIT_SUBTYPES,
   REAL_ESTATE_SUBTYPES,
   buildDefaultLabel,
   createEmptyAssetEntry,
@@ -12,6 +15,7 @@ import {
   type AssetCategoryKey,
   type AssetEntry,
   type AssetSubtypeKey,
+  type DepositSubtypeKey,
 } from "../../lib/assets";
 
 type AssetManagerProps = {
@@ -91,7 +95,13 @@ function PieChart({ slices, netAssets, size }: {
 /* ── helpers ── */
 function placeholderId(k: AssetCategoryKey, i: number) { return `placeholder-${k}-${i}`; }
 function ensureCategoryRows(entries: AssetEntry[]) {
-  const sorted = entries.map((e, i) => ({ ...e, sortOrder: e.sortOrder ?? i, extraData: e.extraData ?? {} }));
+  // "saving" 카테고리를 "deposit"으로 마이그레이션
+  const migrated = entries.map((e) =>
+    e.categoryKey === "saving"
+      ? { ...e, categoryKey: "deposit" as AssetCategoryKey, extraData: { ...e.extraData, depositSubtype: "saving" as DepositSubtypeKey } }
+      : e
+  );
+  const sorted = migrated.map((e, i) => ({ ...e, sortOrder: e.sortOrder ?? i, extraData: e.extraData ?? {} }));
   return ASSET_CATEGORIES.flatMap((cat) => {
     const rows = sorted.filter((e) => e.categoryKey === cat.key);
     return rows.length > 0 ? rows : [createEmptyAssetEntry(cat.key, placeholderId(cat.key, 0), 0)];
@@ -99,6 +109,25 @@ function ensureCategoryRows(entries: AssetEntry[]) {
 }
 function newLocalRow(k: AssetCategoryKey, idx: number) {
   return createEmptyAssetEntry(k, `local-${k}-${Date.now()}-${idx}`, idx);
+}
+
+/** 자동차 감가상각 잔존가치 계산 (KB차차차 기준 근사치) */
+function calcCarResidual(purchaseManwon: number, year: number, mileageKm: number): number {
+  if (!purchaseManwon || !year) return 0;
+  const now = new Date().getFullYear();
+  const age = Math.max(0, now - year);
+  const rates = [1.0, 0.75, 0.63, 0.53, 0.45, 0.38, 0.32, 0.27, 0.23, 0.19, 0.16];
+  const rate = rates[Math.min(age, rates.length - 1)];
+  const avgKm = age * 15000;
+  const excessKm = Math.max(0, (mileageKm || 0) - avgKm);
+  const mileagePenalty = Math.min(0.15, (excessKm / 100000) * 0.05);
+  return Math.max(0, Math.round(purchaseManwon * rate * (1 - mileagePenalty)));
+}
+
+function formatWon(won: number) {
+  if (won >= 100000000) return `${(won / 100000000).toFixed(2)}억원`;
+  if (won >= 10000) return `${(won / 10000).toFixed(0)}만원`;
+  return `${won.toLocaleString()}원`;
 }
 
 /* ══════════════════════════════════════════════
@@ -118,6 +147,13 @@ export default function AssetManager({ initialEntries, hasRealEstateMarketApiKey
   const [monthlySavings, setMonthlySavings] = useState(0);
   const [monthlyInterest, setMonthlyInterest] = useState(0);
   const [monthlyPrincipal, setMonthlyPrincipal] = useState(0);
+  // 주식 검색
+  const [stockSearch, setStockSearch] = useState<Record<string, string>>({});
+  const [stockResults, setStockResults] = useState<Record<string, Array<{code: string; name: string; market: string}>>>({});
+  const stockSearchRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  // 코인 검색
+  const [coinSearch, setCoinSearch] = useState<Record<string, string>>({});
+  const [coinResults, setCoinResults] = useState<Record<string, Array<{symbol: string; name: string}>>>({});
 
   /* localStorage cashflow */
   useEffect(() => {
@@ -217,6 +253,137 @@ export default function AssetManager({ initialEntries, hasRealEstateMarketApiKey
     const m = Number(e.extraData?.marketPriceManwon ?? 0);
     return m > 0 ? { ...e, amountManwon: m, extraData: { ...(e.extraData ?? {}), marketUpdatedAt: new Date().toISOString() } } : e;
   });
+
+  // ── 주식 핸들러 ──────────────────────────────────────────────────────────
+
+  const searchStock = (id: string, q: string) => {
+    setStockSearch((s) => ({ ...s, [id]: q }));
+    if (stockSearchRef.current[id]) clearTimeout(stockSearchRef.current[id]);
+    if (!q.trim()) { setStockResults((s) => ({ ...s, [id]: [] })); return; }
+    stockSearchRef.current[id] = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/market/stock?action=search&q=${encodeURIComponent(q)}`);
+        const data = await res.json() as { data?: { stocks?: Array<{code: string; name: string; market: string}> } };
+        setStockResults((s) => ({ ...s, [id]: data.data?.stocks ?? [] }));
+      } catch { /* ignore */ }
+    }, 350);
+  };
+
+  const selectStock = (id: string, code: string, name: string, market: string) => {
+    upd(id, (e) => ({ ...e, label: e.label || name, extraData: { ...(e.extraData ?? {}), stockCode: code, stockMarket: market as "KOSPI" | "KOSDAQ" } }));
+    setStockSearch((s) => ({ ...s, [id]: "" }));
+    setStockResults((s) => ({ ...s, [id]: [] }));
+  };
+
+  const fetchStockPrice = async (id: string) => {
+    const entry = drafts.find((e) => e.id === id);
+    const code = entry?.extraData?.stockCode ?? "";
+    if (!code) { setLookupMsg((c) => ({ ...c, [id]: "종목을 먼저 선택하세요." })); return; }
+    setLookupLoading((c) => ({ ...c, [id]: true }));
+    setLookupMsg((c) => ({ ...c, [id]: "시세 조회 중..." }));
+    try {
+      const res = await fetch(`/api/market/stock?action=price&code=${code}`);
+      const json = await res.json() as { data?: { currentPriceWon?: number; name?: string; market?: string; changeRate?: number } };
+      const d = json.data;
+      if (!d?.currentPriceWon) { setLookupMsg((c) => ({ ...c, [id]: "시세 조회 실패" })); return; }
+      const qty = Number(entry?.extraData?.stockQty ?? 0);
+      upd(id, (e) => ({
+        ...e,
+        label: e.label || (d.name ?? ""),
+        amountManwon: qty > 0 ? Math.round((qty * d.currentPriceWon!) / 10000) : e.amountManwon,
+        extraData: {
+          ...(e.extraData ?? {}),
+          stockCurrentPriceWon: d.currentPriceWon,
+          stockMarket: (d.market ?? e.extraData?.stockMarket) as "KOSPI" | "KOSDAQ",
+          stockPriceUpdatedAt: new Date().toISOString(),
+        },
+      }));
+      const rate = d.changeRate ?? 0;
+      setLookupMsg((c) => ({ ...c, [id]: `${formatWon(d.currentPriceWon!)} (${rate >= 0 ? "+" : ""}${rate.toFixed(2)}%)` }));
+    } finally { setLookupLoading((c) => ({ ...c, [id]: false })); }
+  };
+
+  const handleStockQty = (id: string, v: string) => {
+    if (!/^\d*\.?\d*$/.test(v)) return;
+    const qty = v === "" ? 0 : Number(v);
+    upd(id, (e) => {
+      const price = Number(e.extraData?.stockCurrentPriceWon ?? 0);
+      return {
+        ...e,
+        extraData: { ...(e.extraData ?? {}), stockQty: qty },
+        amountManwon: price > 0 ? Math.round((qty * price) / 10000) : e.amountManwon,
+      };
+    });
+  };
+
+  // ── 코인 핸들러 ──────────────────────────────────────────────────────────
+
+  const searchCoin = async (id: string, q: string) => {
+    setCoinSearch((s) => ({ ...s, [id]: q }));
+    if (!q.trim()) { setCoinResults((s) => ({ ...s, [id]: [] })); return; }
+    try {
+      const res = await fetch(`/api/market/coin?action=search&q=${encodeURIComponent(q)}`);
+      const data = await res.json() as { data?: { coins?: Array<{symbol: string; name: string}> } };
+      setCoinResults((s) => ({ ...s, [id]: data.data?.coins ?? [] }));
+    } catch { /* ignore */ }
+  };
+
+  const selectCoin = (id: string, symbol: string, name: string) => {
+    upd(id, (e) => ({ ...e, label: e.label || name, extraData: { ...(e.extraData ?? {}), coinSymbol: symbol, coinName: name } }));
+    setCoinSearch((s) => ({ ...s, [id]: "" }));
+    setCoinResults((s) => ({ ...s, [id]: [] }));
+  };
+
+  const fetchCoinPrice = async (id: string) => {
+    const entry = drafts.find((e) => e.id === id);
+    const symbol = entry?.extraData?.coinSymbol ?? "";
+    if (!symbol) { setLookupMsg((c) => ({ ...c, [id]: "코인을 먼저 선택하세요." })); return; }
+    setLookupLoading((c) => ({ ...c, [id]: true }));
+    setLookupMsg((c) => ({ ...c, [id]: "시세 조회 중..." }));
+    try {
+      const res = await fetch(`/api/market/coin?action=price&symbol=${symbol}`);
+      const json = await res.json() as { data?: { currentPriceWon?: number; changeRate?: number } };
+      const d = json.data;
+      if (!d?.currentPriceWon) { setLookupMsg((c) => ({ ...c, [id]: "시세 조회 실패" })); return; }
+      const qty = Number(entry?.extraData?.coinQty ?? 0);
+      upd(id, (e) => ({
+        ...e,
+        amountManwon: qty > 0 ? Math.round((qty * d.currentPriceWon!) / 10000) : e.amountManwon,
+        extraData: {
+          ...(e.extraData ?? {}),
+          coinCurrentPriceWon: d.currentPriceWon,
+          coinPriceUpdatedAt: new Date().toISOString(),
+        },
+      }));
+      const rate = d.changeRate ?? 0;
+      setLookupMsg((c) => ({ ...c, [id]: `${formatWon(d.currentPriceWon!)} (${rate >= 0 ? "+" : ""}${rate.toFixed(2)}%)` }));
+    } finally { setLookupLoading((c) => ({ ...c, [id]: false })); }
+  };
+
+  const handleCoinQty = (id: string, v: string) => {
+    if (!/^\d*\.?\d*$/.test(v)) return;
+    const qty = v === "" ? 0 : Number(v);
+    upd(id, (e) => {
+      const price = Number(e.extraData?.coinCurrentPriceWon ?? 0);
+      return {
+        ...e,
+        extraData: { ...(e.extraData ?? {}), coinQty: qty },
+        amountManwon: price > 0 ? Math.round((qty * price) / 10000) : e.amountManwon,
+      };
+    });
+  };
+
+  // ── 자동차 핸들러 ─────────────────────────────────────────────────────────
+
+  const calcCarValue = (id: string) => {
+    upd(id, (e) => {
+      const purchase = Number(e.extraData?.carPurchasePriceManwon ?? 0);
+      const year = Number(e.extraData?.carYear ?? 0);
+      const mileage = Number(e.extraData?.carMileageKm ?? 0);
+      const est = calcCarResidual(purchase, year, mileage);
+      return { ...e, extraData: { ...(e.extraData ?? {}), carEstimatedPriceManwon: est }, amountManwon: est };
+    });
+  };
 
   const lookupMarket = async (id: string) => {
     const t = drafts.find((e) => e.id === id);
@@ -534,6 +701,190 @@ export default function AssetManager({ initialEntries, hasRealEstateMarketApiKey
                             </div>
                           </div>
                         </>
+                      )}
+
+                      {/* ── 예금·적금 ──────────────────────────────── */}
+                      {group.key === "deposit" && (
+                        <div className="asset-deposit-meta">
+                          <select className="asset-select" value={entry.extraData?.bankName ?? ""}
+                            onChange={(e) => upd(entry.id, (d) => ({ ...d, extraData: { ...(d.extraData ?? {}), bankName: e.target.value } }))}>
+                            <option value="">은행 선택</option>
+                            {BANKS.map((b) => <option key={b} value={b}>{b}</option>)}
+                          </select>
+                          <select className="asset-select" value={entry.extraData?.depositSubtype ?? "checking"}
+                            onChange={(e) => upd(entry.id, (d) => ({ ...d, extraData: { ...(d.extraData ?? {}), depositSubtype: e.target.value as DepositSubtypeKey } }))}>
+                            {DEPOSIT_SUBTYPES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+                          </select>
+                        </div>
+                      )}
+
+                      {/* ── 주식 ────────────────────────────────────── */}
+                      {group.key === "stock" && (
+                        <div className="asset-market-meta">
+                          <div className="asset-search-row">
+                            <div className="asset-search-wrap">
+                              <input className="asset-row-input" placeholder="종목명 검색 (예: 삼성전자)"
+                                value={stockSearch[entry.id] ?? ""}
+                                onChange={(e) => searchStock(entry.id, e.target.value)}
+                              />
+                              {entry.extraData?.stockCode && (
+                                <span className="asset-code-badge">{entry.extraData.stockMarket ?? ""} {entry.extraData.stockCode}</span>
+                              )}
+                              {(stockResults[entry.id]?.length ?? 0) > 0 && (
+                                <ul className="asset-search-dropdown">
+                                  {stockResults[entry.id].map((r) => (
+                                    <li key={r.code} onClick={() => selectStock(entry.id, r.code, r.name, r.market)}>
+                                      <span className="asset-dd-name">{r.name}</span>
+                                      <span className="asset-dd-code">{r.market} {r.code}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
+                            <div className="asset-qty-wrap">
+                              <input className="asset-input" inputMode="numeric" placeholder="수량"
+                                value={entry.extraData?.stockQty ?? ""}
+                                onChange={(e) => handleStockQty(entry.id, e.target.value)}
+                              />
+                              <span className="asset-input-unit">주</span>
+                            </div>
+                            <button className="btn btn-ghost btn-sm" type="button"
+                              disabled={lookupLoading[entry.id]}
+                              onClick={() => fetchStockPrice(entry.id)}>
+                              {lookupLoading[entry.id] ? "조회중..." : "📈 현재가"}
+                            </button>
+                          </div>
+                          {entry.extraData?.stockCurrentPriceWon && (
+                            <div className="asset-price-row">
+                              <span className="asset-price-label">현재가</span>
+                              <span className="asset-price-val">{formatWon(entry.extraData.stockCurrentPriceWon)}</span>
+                              {(entry.extraData.stockQty ?? 0) > 0 && (
+                                <span className="asset-price-total">× {entry.extraData.stockQty}주 = {formatManwon(Math.round((entry.extraData.stockQty! * entry.extraData.stockCurrentPriceWon) / 10000))}</span>
+                              )}
+                              {entry.extraData.stockPriceUpdatedAt && (
+                                <span className="asset-price-time">{new Date(entry.extraData.stockPriceUpdatedAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })} 기준</span>
+                              )}
+                            </div>
+                          )}
+                          {lookupMsg[entry.id] && <span className="realestate-lookup-message">{lookupMsg[entry.id]}</span>}
+                        </div>
+                      )}
+
+                      {/* ── 코인 ────────────────────────────────────── */}
+                      {group.key === "coin" && (
+                        <div className="asset-market-meta">
+                          <div className="asset-search-row">
+                            <div className="asset-search-wrap">
+                              <input className="asset-row-input" placeholder="코인명 검색 (예: 비트코인)"
+                                value={coinSearch[entry.id] ?? ""}
+                                onChange={(e) => {
+                                  void searchCoin(entry.id, e.target.value);
+                                  setCoinSearch((s) => ({ ...s, [entry.id]: e.target.value }));
+                                }}
+                              />
+                              {entry.extraData?.coinSymbol && (
+                                <span className="asset-code-badge">KRW-{entry.extraData.coinSymbol}</span>
+                              )}
+                              {(coinResults[entry.id]?.length ?? 0) > 0 && (
+                                <ul className="asset-search-dropdown">
+                                  {coinResults[entry.id].map((r) => (
+                                    <li key={r.symbol} onClick={() => selectCoin(entry.id, r.symbol, r.name)}>
+                                      <span className="asset-dd-name">{r.name}</span>
+                                      <span className="asset-dd-code">{r.symbol}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
+                            <div className="asset-qty-wrap">
+                              <input className="asset-input" placeholder="수량"
+                                value={entry.extraData?.coinQty ?? ""}
+                                onChange={(e) => handleCoinQty(entry.id, e.target.value)}
+                              />
+                              <span className="asset-input-unit">개</span>
+                            </div>
+                            <button className="btn btn-ghost btn-sm" type="button"
+                              disabled={lookupLoading[entry.id]}
+                              onClick={() => fetchCoinPrice(entry.id)}>
+                              {lookupLoading[entry.id] ? "조회중..." : "🪙 현재가"}
+                            </button>
+                          </div>
+                          {entry.extraData?.coinCurrentPriceWon && (
+                            <div className="asset-price-row">
+                              <span className="asset-price-label">현재가</span>
+                              <span className="asset-price-val">{formatWon(entry.extraData.coinCurrentPriceWon)}</span>
+                              {(entry.extraData.coinQty ?? 0) > 0 && (
+                                <span className="asset-price-total">× {entry.extraData.coinQty}개 = {formatManwon(Math.round((entry.extraData.coinQty! * entry.extraData.coinCurrentPriceWon) / 10000))}</span>
+                              )}
+                              {entry.extraData.coinPriceUpdatedAt && (
+                                <span className="asset-price-time">{new Date(entry.extraData.coinPriceUpdatedAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })} 기준</span>
+                              )}
+                            </div>
+                          )}
+                          {lookupMsg[entry.id] && <span className="realestate-lookup-message">{lookupMsg[entry.id]}</span>}
+                        </div>
+                      )}
+
+                      {/* ── 자동차 ──────────────────────────────────── */}
+                      {group.key === "car" && (
+                        <div className="asset-car-meta">
+                          <div className="asset-car-grid">
+                            <select className="asset-select" value={entry.extraData?.carMaker ?? ""}
+                              onChange={(e) => upd(entry.id, (d) => ({ ...d, extraData: { ...(d.extraData ?? {}), carMaker: e.target.value } }))}>
+                              <option value="">제조사 선택</option>
+                              {CAR_MAKERS.map((m) => <option key={m} value={m}>{m}</option>)}
+                            </select>
+                            <input className="asset-row-input" placeholder="차종 (예: 아반떼 N·1.6T)"
+                              value={entry.extraData?.carModel ?? ""}
+                              onChange={(e) => upd(entry.id, (d) => ({ ...d, extraData: { ...(d.extraData ?? {}), carModel: e.target.value } }))}
+                            />
+                            <div className="asset-input-wrap">
+                              <input className="asset-input" inputMode="numeric" placeholder="연식"
+                                value={entry.extraData?.carYear ?? ""}
+                                onChange={(e) => {
+                                  const v = Number(e.target.value.replace(/\D/g, "")) || undefined;
+                                  upd(entry.id, (d) => ({ ...d, extraData: { ...(d.extraData ?? {}), carYear: v } }));
+                                }}
+                              />
+                              <span className="asset-input-unit">년</span>
+                            </div>
+                            <div className="asset-input-wrap">
+                              <input className="asset-input" inputMode="numeric" placeholder="주행거리"
+                                value={entry.extraData?.carMileageKm ?? ""}
+                                onChange={(e) => {
+                                  const v = Number(e.target.value.replace(/\D/g, "")) || undefined;
+                                  upd(entry.id, (d) => ({ ...d, extraData: { ...(d.extraData ?? {}), carMileageKm: v } }));
+                                }}
+                              />
+                              <span className="asset-input-unit">km</span>
+                            </div>
+                            <div className="asset-input-wrap">
+                              <input className="asset-input" inputMode="numeric" placeholder="구매가"
+                                value={entry.extraData?.carPurchasePriceManwon ?? ""}
+                                onChange={(e) => {
+                                  const v = Number(e.target.value.replace(/\D/g, "")) || undefined;
+                                  upd(entry.id, (d) => ({ ...d, extraData: { ...(d.extraData ?? {}), carPurchasePriceManwon: v } }));
+                                }}
+                              />
+                              <span className="asset-input-unit">만원</span>
+                            </div>
+                            <button className="btn btn-ghost btn-sm" type="button" onClick={() => calcCarValue(entry.id)}>
+                              🚗 잔존가치 계산
+                            </button>
+                          </div>
+                          {(entry.extraData?.carEstimatedPriceManwon ?? 0) > 0 && (
+                            <div className="asset-car-result">
+                              <span className="asset-price-label">추정 중고가</span>
+                              <strong className="asset-price-val">{formatManwon(entry.extraData!.carEstimatedPriceManwon!)}</strong>
+                              <span className="asset-price-time">
+                                (구매가 {entry.extraData?.carPurchasePriceManwon ? formatManwon(entry.extraData.carPurchasePriceManwon) : "-"} 기준 KB감가상각 근사치 / 실제와 차이 있을 수 있음)
+                              </span>
+                            </div>
+                          )}
+                          {!entry.extraData?.carEstimatedPriceManwon && (
+                            <p className="asset-subhint">제조사·차종·연식·주행거리·구매가 입력 후 "잔존가치 계산" 클릭 → 금액 자동 반영<br/>※ KB차차차 기준 감가상각 공식 적용 (실제 중고가는 차이 있을 수 있음)</p>
+                          )}
+                        </div>
                       )}
                     </div>
                   );
