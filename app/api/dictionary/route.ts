@@ -108,12 +108,12 @@ export async function GET(req: NextRequest) {
   const cho = req.nextUrl.searchParams.get("cho")?.trim() ?? "";
   const apiKey = process.env.KRDICT_API_KEY;
 
-  // KRDict API 사용 (검색어 있을 때만)
-  if (q && apiKey) {
+  // KRDict API 사용 (검색어 또는 초성 있을 때)
+  if ((q || cho) && apiKey) {
     try {
       const url = new URL("https://krdict.korean.go.kr/api/search");
       url.searchParams.set("key", apiKey);
-      url.searchParams.set("q", q);
+      url.searchParams.set("q", q || cho);  // 초성도 q로 전달
       url.searchParams.set("part", "word");
       url.searchParams.set("sort", "popular");
       url.searchParams.set("num", "50");
