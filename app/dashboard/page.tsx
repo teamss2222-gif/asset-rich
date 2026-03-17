@@ -49,6 +49,13 @@ const folders = [
     color: "folder-orange",
   },
   {
+    href: "/dashboard/stock",
+    label: "주가 시뮬",
+    icon: "📊",
+    desc: "뉴스 기반 · 5개 에이전트 · AI 예측",
+    color: "folder-green",
+  },
+  {
     href: "/dashboard/dict",
     label: "사전",
     icon: "📖",
