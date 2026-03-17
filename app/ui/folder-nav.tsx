@@ -8,6 +8,7 @@ const folders = [
   { href: "/dashboard/cards",    label: "카드혜택",    icon: "💳", openIcon: "📂", color: "blue"   },
   { href: "/dashboard/schedule", label: "시간표",      icon: "🗓️", openIcon: "📂", color: "teal"   },
   { href: "/dashboard/issues",   label: "실시간 이슈", icon: "🔥", openIcon: "📂", color: "red"    },
+  { href: "/dashboard/stock",    label: "주가 시뮬",   icon: "📊", openIcon: "📂", color: "green"  },
   { href: "/dashboard/game",     label: "게임",        icon: "🎮", openIcon: "📂", color: "purple" },
   { href: "/dashboard/habit",     label: "습관 트래커", icon: "🌿", openIcon: "📂", color: "green"  },
   { href: "/dashboard/pomodoro",  label: "뽀모도로",    icon: "⏱️", openIcon: "📂", color: "orange" },
